@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="text-center mb-4">🎓 Student Dashboard</h2>
+
+    <!-- PROFILE -->
+    <div class="card p-3 mb-4 bg-secondary">
+        <h4>Profile</h4>
+        <div class="row">
+            <div class="col-md-4">
+                {% if student.photo %}
+                <img src="/static/uploads/{{ student.photo }}" class="img-fluid rounded-circle" width="150" alt="Photo">
+                {% else %}
+                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width:150px;height:150px;">
+                    📸
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-8">
+                <p><b>Name:</b> {{ student.name }}</p>
+                <p><b>ID:</b> {{ student.student_id }}</p>
+                <p><b>Gender:</b> {{ student.gender }}</p>
+                <p><b>Branch:</b> {{ student.branch }}</p>
+                <p><b>Semester:</b> {{ student.semester }}</p>
+                <p><b>Mobile:</b> {{ student.mobile }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DYNAMIC MARKS -->
+    <div class="card p-3 mb-4 bg-secondary">
+        <h4>Marks ({{ student.marks|length }} subjects)</h4>
+        <table class="table table-dark table-striped">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Internal 1</th>
+                    <th>Internal 2</th>
+                    <th>Internal 3</th>
+                    <th>Average</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mark in student.marks %}
+                <tr>
+                    <td>{{ mark.subject_name }}</td>
+                    <td>{{ mark.internal_exam_1 }}</td>
+                    <td>{{ mark.internal_exam_2 }}</td>
+                    <td>{{ mark.internal_exam_3 }}</td>
+                    <td>{{ "%.1f"|format(mark.average) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th>Total Average</th>
+                    <td colspan="4">
+                        {% set total_avg = student.marks|selectattr('average', 'defined')|map(attribute='average')|sum / student.marks|length if student.marks else 0 %}
+                        <b>{{ "%.1f"|format(total_avg) }}%</b>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

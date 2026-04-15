@@ -1,107 +1,159 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Login</title>
+{% extends "base.html" %}
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+{% block title %}Role-Based Login - Academic System{% endblock %}
 
-    <style>
+{% block content %}
+<div class="login-wrapper">
+  <div class="login-bg"></div>
 
-        body {
-            margin: 0;
-            height: 100vh;
-            background: linear-gradient(135deg, #4f46e5, #9333ea);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Segoe UI', sans-serif;
-        }
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-10 col-lg-8">
 
-        .login-box {
-            width: 380px;
-            padding: 40px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(15px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            animation: fadeIn 1s ease;
-        }
+        <!-- HEADER -->
+        <div class="login-container mb-5 text-center">
+          <h2 class="fw-bold text-white mb-4">Academic Portal Login</h2>
+          <p class="text-light mb-4">Select your role to login</p>
 
-        h2 {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-            font-weight: bold;
-        }
+          <!-- ROLE TABS -->
+          <ul class="nav nav-pills login-tabs mb-5 justify-content-center flex-wrap gap-2">
+            <li class="nav-item">
+              <button class="nav-link role-tab active" data-role="admin" data-label="Username">Admin</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link role-tab" data-role="teacher" data-label="Teacher ID">Teacher</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link role-tab" data-role="student" data-label="Student ID">Student</button>
+            </li>
+          </ul>
 
-        .form-control {
-            border-radius: 12px;
-            border: none;
-            padding: 12px;
-            margin-bottom: 15px;
-        }
+          <!-- FORGOT PASSWORD -->
+          <div id="forgotSection" class="text-center mb-3 d-none">
+            <a id="forgotLink" href="#" class="text-info fw-bold"></a>
+          </div>
+        </div>
 
-        .form-control:focus {
-            border: 2px solid #9333ea;
-            box-shadow: none;
-        }
+        <!-- LOGIN FORM -->
+        <div class="login-container">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'warning' if category == 'message' else 'info' }} mb-3" role="alert">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+          <form method="POST">
 
-        .btn-login {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            border: none;
-            background: linear-gradient(45deg, #22c55e, #16a34a);
-            color: white;
-            font-weight: bold;
-            transition: 0.3s;
-        }
+            <input type="hidden" name="role" id="role" value="admin">
 
-        .btn-login:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
+            <!-- USERNAME -->
+            <div class="mb-3">
+              <label id="usernameLabel" class="text-white">Username</label>
+              <input type="text" name="username" id="username" class="form-control" required>
+            </div>
 
-        .icon {
-            font-size: 40px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
+            <!-- PASSWORD -->
+            <div class="mb-3">
+              <label class="text-white">Password</label>
+              <input type="password" name="password" class="form-control" required>
+            </div>
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+            <!-- CAPTCHA -->
+            <div class="mb-3 d-flex">
+              <div style="background:black;color:white;padding:10px;width:120px;text-align:center">
+                {{ captcha }}
+              </div>
+              <input type="text" name="captcha" class="form-control ms-2" placeholder="Enter code" required>
+            </div>
 
-    </style>
+            <!-- BUTTON -->
+            <button class="btn btn-info w-100" id="loginBtn">Login as Admin</button>
+          </form>
 
-</head>
+          <!-- NEW USER -->
+          <div id="registerSection" class="text-center mt-4 d-none">
+            <p class="text-light">New User?</p>
 
-<body>
+            <a href="/register_teacher" id="teacherBtn" class="btn btn-outline-light d-none">
+              Teacher Registration
+            </a>
 
-<div class="login-box">
+            <a href="/register_student" id="studentBtn" class="btn btn-outline-light d-none">
+              Student Registration
+            </a>
+          </div>
+        </div>
 
-    <div class="icon"> </div>
-
-    <h2>Admin Login</h2>
-    
-    <form method="POST">
-
-        <input type="text" name="username" class="form-control" placeholder="Username" required>
-
-        <input type="password" name="password" class="form-control" placeholder="Password" required>
-
-        <button class="btn-login">Login</button>
-
-    </form>
-
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
 
-</body>
-</html>
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const tabs = document.querySelectorAll(".role-tab");
+  const roleInput = document.getElementById("role");
+  const usernameLabel = document.getElementById("usernameLabel");
+  const usernameInput = document.getElementById("username");
+  const loginBtn = document.getElementById("loginBtn");
+
+  const forgotSection = document.getElementById("forgotSection");
+  const forgotLink = document.getElementById("forgotLink");
+
+  const registerSection = document.getElementById("registerSection");
+  const teacherBtn = document.getElementById("teacherBtn");
+  const studentBtn = document.getElementById("studentBtn");
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", function () {
+
+      // Active tab
+      tabs.forEach(t => t.classList.remove("active"));
+      this.classList.add("active");
+
+      const role = this.dataset.role;
+      const label = this.dataset.label;
+
+      roleInput.value = role;
+      usernameLabel.innerText = label;
+      usernameInput.placeholder = "Enter " + label;
+      loginBtn.innerText = "Login as " + this.innerText;
+
+      // RESET ALL
+      forgotSection.classList.add("d-none");
+      registerSection.classList.add("d-none");
+      teacherBtn.classList.add("d-none");
+      studentBtn.classList.add("d-none");
+
+      // ROLE LOGIC
+      if (role === "teacher") {
+        forgotSection.classList.remove("d-none");
+        registerSection.classList.remove("d-none");
+
+        forgotLink.innerText = "Forgot Teacher Password?";
+        forgotLink.href = "/teacher_forgot_password";
+
+        teacherBtn.classList.remove("d-none");
+      }
+
+      else if (role === "student") {
+        forgotSection.classList.remove("d-none");
+        registerSection.classList.remove("d-none");
+
+        forgotLink.innerText = "Forgot Student Password?";
+        forgotLink.href = "/student_forgot_password";
+
+        studentBtn.classList.remove("d-none");
+      }
+
+      // Admin → nothing shown
+    });
+  });
+
+});
+</script>
+{% endblock %}

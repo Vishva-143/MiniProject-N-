@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Update Teacher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f6f9; }
+        .card { border-radius: 15px; }
+        h3 { font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <div class="card p-4 shadow">
+        <h3 class="text-center mb-4">✏️ Update Teacher - {{ teacher.name }}</h3>
+        <form method="POST" enctype="multipart/form-data">
+            <!-- Hidden teacher_id (read-only) -->
+            <input type="hidden" name="teacher_id" value="{{ teacher.teacher_id }}">
+
+            <!-- Password (optional change) -->
+            <div class="mb-3">
+                <label class="form-label">New Password (leave blank to keep current)</label>
+                <input type="password" name="password" class="form-control" placeholder="Enter new password">
+            </div>
+
+            <!-- Name -->
+            <input name="name" value="{{ teacher.name }}" class="form-control mb-3" required>
+
+            <!-- Gender -->
+            <select name="gender" class="form-control mb-3">
+                <option value="Male" {% if teacher.gender == 'Male' %}selected{% endif %}>Male</option>
+                <option value="Female" {% if teacher.gender == 'Female' %}selected{% endif %}>Female</option>
+            </select>
+
+            <!-- DOB -->
+            <input type="date" name="dob" value="{{ teacher.dob }}" class="form-control mb-3" required>
+
+            <!-- Branch -->
+<select id="branch" name="branch" class="form-control mb-3">
+    <option value="MCA" {% if teacher.branch == 'MCA' %}selected{% endif %}>MCA</option>
+    <option value="MBA" {% if teacher.branch == 'MBA' %}selected{% endif %}>MBA</option>
+</select>
+
+<!-- Subjects -->
+<div class="mb-3">
+    <label class="form-label">Subjects</label>
+    <div id="subjectsContainer" class="border rounded p-3 mb-3">
+        {% if available_subjects %}
+            {% for group in available_subjects|groupby('semester') %}
+                <div class="mb-2"><strong>Semester {{ group.grouper }}</strong></div>
+                {% for subject in group.list %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="subjects" value="{{ subject.id }}" id="sub_{{ subject.id }}" {% if subject.id in selected_subject_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="sub_{{ subject.id }}">{{ subject.subject_name }}</label>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        {% else %}
+            <div class="text-muted">Choose a branch to load subjects</div>
+        {% endif %}
+    </div>
+    <div class="form-text">Select the subjects this teacher will teach.</div>
+</div>
+
+<script>
+function renderSubjects(subjects, selectedIds) {
+    const container = document.getElementById('subjectsContainer');
+    if (!subjects || !subjects.length) {
+        container.innerHTML = '<div class="text-muted">No subjects available for this branch.</div>';
+        return;
+    }
+
+    let html = '';
+    let currentSemester = null;
+    subjects.forEach(subject => {
+        if (subject.semester !== currentSemester) {
+            currentSemester = subject.semester;
+            html += `<div class="mb-2"><strong>Semester ${currentSemester}</strong></div>`;
+        }
+        const checked = selectedIds.has(subject.id) ? 'checked' : '';
+        html += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="subjects" value="${subject.id}" id="sub_${subject.id}" ${checked}>
+                <label class="form-check-label" for="sub_${subject.id}">${subject.subject_name}</label>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const branchSelect = document.getElementById('branch');
+    const selectedSubjectIds = new Set({{ selected_subject_ids|tojson }});
+
+    function loadBranchSubjects(branch) {
+        if (!branch) {
+            document.getElementById('subjectsContainer').innerHTML = '<div class="text-muted">Choose a branch to load subjects</div>';
+            return;
+        }
+
+        fetch(`/get_subjects_by_branch/${encodeURIComponent(branch)}`)
+            .then(response => response.json())
+            .then(data => renderSubjects(data, selectedSubjectIds))
+            .catch(() => {
+                document.getElementById('subjectsContainer').innerHTML = '<div class="text-danger">Unable to load subjects.</div>';
+            });
+    }
+
+    branchSelect.addEventListener('change', function() {
+        selectedSubjectIds.clear();
+        loadBranchSubjects(this.value);
+    });
+
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(event) {
+        if (!document.querySelector('input[name="subjects"]:checked')) {
+            event.preventDefault();
+            alert('Please select at least one subject.');
+        }
+    });
+});
+</script>
+
+
+            <!-- Phone -->
+            <input name="phone" value="{{ teacher.phone }}" class="form-control mb-3" required>
+
+            <!-- PHOTO UPLOAD (optional) -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Update Photo (optional, current: {% if teacher.photo %}{{ teacher.photo }}{% else %}None{% endif %})</label>
+                <input type="file" name="photo" id="photoInput" accept="image/*">
+                <button type="button" class="btn btn-outline-primary w-100 mt-2" onclick="document.getElementById('photoInput').click()">📷 Change Photo</button>
+                <p id="fileName" class="mt-2 text-muted">No new file selected</p>
+                {% if teacher.photo %}
+                <img src="/static/uploads/{{ teacher.photo }}" width="100" class="mt-2 rounded" alt="Current">
+                {% endif %}
+            </div>
+
+            <!-- BUTTONS -->
+            <button class="btn btn-success w-100 mb-2">💾 Update Teacher</button>
+            <a href="/teacher/{{ teacher.teacher_id }}" class="btn btn-secondary w-100">← Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById("photoInput").addEventListener("change", function() {
+    let file = this.files[0];
+    document.getElementById("fileName").innerText = file ? file.name : "No new file selected";
+});
+</script>
+</body>
+</html>

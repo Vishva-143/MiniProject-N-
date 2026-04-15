@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card p-4">
+
+<h3>Edit Announcement</h3>
+
+<form method="POST">
+<input name="message" value="{{ a.message }}" class="form-control mb-3" required>
+
+<button class="btn btn-primary">Update</button>
+<a href="/announcements" class="btn btn-secondary">Back</a>
+</form>
+
+</div>
+
+{% endblock %}

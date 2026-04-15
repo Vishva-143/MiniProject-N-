@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card p-4">
+
+<h3>📢 Announcements</h3>
+
+<!-- POST FORM -->
+{% if role in ['admin', 'teacher'] %}
+<form method="POST" enctype="multipart/form-data">
+<input name="message" class="form-control mb-3" placeholder="Enter announcement..." required>
+
+<select name="target_audience" class="form-control mb-3">
+  <option value="all">All Users</option>
+  <option value="teachers">Teachers</option>
+  <option value="students">Students</option>
+</select>
+
+<input type="file" name="file" class="form-control mb-3">
+
+<button class="btn btn-success">Post</button>
+</form>
+{% endif %}
+
+<hr>
+
+<!-- LIST -->
+{% for a in data %}
+<div class="card p-3 mt-3">
+
+<h6>Target: {{ a.target_audience }} | By: {{ a.created_by or 'Unknown' }}</h6>
+<p>{{ a.message }}</p>
+
+<!-- FILE -->
+{% if a.file %}
+<a href="/static/uploads/{{ a.file }}" target="_blank" class="btn btn-info btn-sm">
+📎 View File
+</a>
+{% endif %}
+
+<br><br>
+
+<!-- ACTIONS (admin only) -->
+{% if role == 'admin' %}
+<a href="/edit_announcement/{{ a.id }}" class="btn btn-warning btn-sm">Edit</a>
+
+<a href="/delete_announcement/{{ a.id }}"
+   class="btn btn-danger btn-sm"
+   onclick="return confirm('Delete this announcement?')">
+Delete
+</a>
+{% endif %}
+
+</div>
+{% endfor %}
+
+</div>
+
+{% endblock %}

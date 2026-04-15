@@ -1,45 +1,234 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">📊 Analytics</h2>
+<h2 class="mb-4 text-center">📊 Advanced Analytics</h2>
 
+<form method="get" class="row g-2 align-items-center mb-4">
+    <div class="col-auto">
+        <select name="class_id" class="form-select">
+            <option value="">All Classes</option>
+            {% for cls in classes %}
+            <option value="{{ cls.id }}" {% if selected_class_id == cls.id %}selected{% endif %}>
+                {{ cls.class_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary">Show Class</button>
+    </div>
+    {% if selected_class_name %}
+    <div class="col-auto">
+        <span class="badge bg-secondary">Filtered: {{ selected_class_name }}</span>
+    </div>
+    {% endif %}
+</form>
+
+<!-- 🔥 TOP SUMMARY -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h6>🏆 Topper</h6>
+            <h4 class="text-info">{{ topper }}</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h6>📊 Class Average</h6>
+            <h4 class="text-success">{{ avg }}%</h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-3 text-center">
+            <h6>👥 Students</h6>
+            <h4 class="text-white">{{ student_count }}</h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-3 text-center bg-success text-white">
+            <h6>✅ Pass Rate</h6>
+            <h4>{{ pass_rate }}%</h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card p-3 text-center bg-danger text-white">
+            <h6>⚠ Weak Students</h6>
+            <h4>{{ weak_count }}</h4>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card p-3">
+            <h6>Grade Distribution</h6>
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-success">A: {{ grade_counts.A }}</span>
+                <span class="badge bg-info">B: {{ grade_counts.B }}</span>
+                <span class="badge bg-warning text-dark">C: {{ grade_counts.C }}</span>
+                <span class="badge bg-secondary">D: {{ grade_counts.D }}</span>
+                <span class="badge bg-danger">F: {{ grade_counts.F }}</span>
+                <span class="badge bg-dark">Fail Rate: {{ fail_rate }}%</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if teacher_stats %}
+<div class="card p-4 mb-4 bg-dark text-light">
+    <h4>👩‍🏫 Teacher Analytics</h4>
+    <div class="row mt-3 gy-3">
+        <div class="col-md-3">
+            <div class="card bg-secondary text-light p-3 h-100">
+                <h6>Teacher</h6>
+                <h5>{{ teacher_stats.teacher.name }}</h5>
+                <p class="mb-0"><strong>ID:</strong> {{ teacher_stats.teacher.teacher_id }}</p>
+                <p class="mb-0"><strong>Branch:</strong> {{ teacher_stats.teacher.branch }}</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-light p-3 h-100">
+                <h6>Assigned Subjects</h6>
+                <p class="mb-1">{{ teacher_stats.subjects or 'None assigned' }}</p>
+                <small>{{ teacher_stats.teacher.subjects or '' }}</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-light p-3 h-100">
+                <h6>Students</h6>
+                <h3>{{ teacher_stats.student_count }}</h3>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-light p-3 h-100">
+                <h6>Pass Rate</h6>
+                <h3>{{ teacher_stats.pass_rate }}%</h3>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-light p-3 h-100">
+                <h6>Fail Rate</h6>
+                <h3>{{ teacher_stats.fail_rate }}%</h3>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card bg-secondary text-light p-3">
+                <h6>Teacher Grade Distribution</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-success">A: {{ teacher_stats.grade_counts.A }}</span>
+                    <span class="badge bg-info">B: {{ teacher_stats.grade_counts.B }}</span>
+                    <span class="badge bg-warning text-dark">C: {{ teacher_stats.grade_counts.C }}</span>
+                    <span class="badge bg-secondary">D: {{ teacher_stats.grade_counts.D }}</span>
+                    <span class="badge bg-danger">F: {{ teacher_stats.grade_counts.F }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<!-- 🔥 TABLE -->
 <div class="card p-4">
 
-<table class="table text-center">
+<table class="table table-dark text-center align-middle">
 
+<thead class="table-light text-dark">
 <tr>
 <th>Name</th>
+<th>Class</th>
 <th>Current</th>
 <th>Predicted</th>
-<th>Weak</th>
+<th>Weak Subject</th>
+<th>Grade</th>
+<th>Status</th>
+<th>Improvement</th>
 </tr>
+</thead>
+
+<tbody>
 
 {% for r in results %}
 <tr>
-<td>{{ r.name }}</td>
 
+<td class="fw-bold">{{ r.name }}</td>
+
+<!-- ✅ CURRENT -->
 <td>
 <div class="progress">
-<div class="progress-bar bg-success" style="width: {{ r.current }}%">
+<div class="progress-bar bg-success" data-width="{{ r.current }}">
 {{ r.current }}%
 </div>
 </div>
 </td>
 
+<!-- ✅ PREDICTED -->
 <td>
 <div class="progress">
-<div class="progress-bar bg-info" style="width: {{ r.predicted }}%">
+<div class="progress-bar bg-info" data-width="{{ r.predicted }}">
 {{ r.predicted }}%
 </div>
 </div>
 </td>
 
+<!-- CLASS -->
+<td>{{ r.class_name }}</td>
+
+<!-- WEAK -->
 <td class="text-danger fw-bold">{{ r.weak }}</td>
+
+<!-- GRADE -->
+<td>
+<span class="badge 
+{% if r.grade == 'A' %}bg-success
+{% elif r.grade == 'B' %}bg-info
+{% elif r.grade == 'C' %}bg-warning
+{% else %}bg-danger
+{% endif %}
+p-2">
+{{ r.grade }}
+</span>
+</td>
+
+<!-- STATUS -->
+<td>
+<span class="badge 
+{% if r.status == 'Pass' %}bg-success
+{% else %}bg-danger
+{% endif %}
+p-2">
+{{ r.status }}
+</span>
+</td>
+
+<!-- IMPROVEMENT -->
+<td>
+<span class="fw-bold 
+{% if r.improvement > 0 %}text-success
+{% elif r.improvement < 0 %}text-danger
+{% else %}text-warning
+{% endif %}">
+{{ r.improvement }}
+</span>
+</td>
+
 </tr>
 {% endfor %}
+
+</tbody>
 
 </table>
 
 </div>
+
+<!-- ✅ SCRIPT MUST BE OUTSIDE LOOP -->
+<script>
+document.querySelectorAll(".progress-bar").forEach(bar => {
+    let w = bar.getAttribute("data-width");
+    bar.style.width = w + "%";
+});
+</script>
 
 {% endblock %}

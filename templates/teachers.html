@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card p-4">
+<h3>👨‍🏫 Teachers</h3>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Subject</th>
+            <th>Phone</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in teachers %}
+        <tr>
+        <td>{{ t.teacher_id }}</td>
+        <td>{{ t.name }}</td>
+        <td>{{ t.subject_names or t.subjects }}</td>
+        <td>{{ t.phone }}</td>
+        <td>
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="/teacher/{{ t.teacher_id }}" class="btn btn-info">View</a>
+                {% if role == 'admin' %}
+                <a href="/update_teacher/{{ t.teacher_id }}" class="btn btn-warning">Edit</a>
+                <a href="/delete_teacher/{{ t.teacher_id }}" class="btn btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+                <a href="/teacher_report/{{ t.teacher_id }}" class="btn btn-primary">PDF</a>
+                {% endif %}
+            </div>
+        </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</div>
+
+{% endblock %}

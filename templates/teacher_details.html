@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>👨‍🏫 Teacher Details - {{ teacher.name }}</h2>
+            <a href="/teachers" class="btn btn-secondary">← Back to Teachers</a>
+        </div>
+
+        <div class="row">
+            <!-- PHOTO -->
+            <div class="col-md-4 text-center mb-4">
+                {% if teacher.photo %}
+                <img src="{{ url_for('static', filename='uploads/' + teacher.photo) }}" class="img-fluid rounded-circle mx-auto d-block" style="width: 200px; height: 200px; object-fit: cover;" alt="Photo">
+                {% else %}
+                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 200px; height: 200px;">
+                    👨‍🏫
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- BASIC INFO -->
+            <div class="col-md-8">
+                <table class="table table-borderless">
+                    <tr><td><strong>ID:</strong></td><td>{{ teacher.teacher_id }}</td></tr>
+                    <tr><td><strong>Name:</strong></td><td>{{ teacher.name }}</td></tr>
+                    <tr><td><strong>Gender:</strong></td><td>{{ teacher.gender }}</td></tr>
+                    <tr><td><strong>Date of Birth:</strong></td><td>{{ teacher.dob }}</td></tr>
+                    <tr><td><strong>Branch:</strong></td><td>{{ teacher.branch }}</td></tr>
+                    <tr><td><strong>Subjects:</strong></td><td>{{ teacher.subject_names }}</td></tr>
+                    <tr><td><strong>Phone:</strong></td><td>{{ teacher.phone }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="d-flex gap-2 mt-4">
+            <a href="/update_teacher/{{ teacher.teacher_id }}" class="btn btn-warning">✏️ Edit</a>
+            <a href="/teacher_report/{{ teacher.teacher_id }}" class="btn btn-info">📄 Download PDF</a>
+            <a href="/teachers" class="btn btn-secondary">← Back</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

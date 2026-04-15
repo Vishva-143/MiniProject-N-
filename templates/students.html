@@ -5,22 +5,47 @@
 
 <div class="card p-4">
 
-<h4 class="mb-4 text-center">📋 Students List</h4>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">📋 Students List</h4>
+    {% if role == 'admin' or role == 'teacher' %}
+    <a href="/upgrade_semester_search" class="btn btn-success btn-sm">
+        <i class="bi bi-arrow-up-circle me-2"></i>Semester Upgrade
+    </a>
+    {% endif %}
+</div>
+
+<form method="get" class="row g-2 align-items-center mb-4">
+    <div class="col-auto">
+        <select name="class_id" class="form-select">
+            <option value="">All Classes</option>
+            {% for cls in classes %}
+            <option value="{{ cls.id }}" {% if selected_class_id == cls.id %}selected{% endif %}>{{ cls.class_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary">Show Class</button>
+    </div>
+    {% if selected_class_name %}
+    <div class="col-auto">
+        <span class="badge bg-secondary">Filtered: {{ selected_class_name }}</span>
+    </div>
+    {% endif %}
+</form>
 
 <!-- 🔍 SEARCH -->
 <input type="text" id="search" class="form-control mb-4" placeholder="Search by Name or Roll No...">
 
-{% for class, students in grouped.items() %}
-
-<div class="mb-4 class-block">
-
-<h5 class="text-info">🎓Students ({{ students|length }})</h5>
+{% if students %}
+<h5 class="text-info">🎓 {{ students|length }} Students</h5>
 
 <table class="table table-dark table-hover text-center align-middle mt-2">
 
 <thead class="table-secondary text-dark">
 <tr>
 <th>Name</th>
+<th>Class</th>
+<th>Semester</th>
 <th>Roll No</th>
 <th>Percentage</th>
 <th>Action</th>
@@ -32,28 +57,36 @@
 {% for s in students %}
 <tr class="student-row">
 
-<td class="name">{{ s[1] }}</td>
-<td class="roll">{{ s[2] }}</td>
+ <td class="name">{{ s.name or 'N/A' }}</td>
+ <td>{{ s.class_name or s.branch or 'N/A' }}</td>
+ <td>{{ s.semester or 'N/A' }}</td>
+ <td class="roll">{{ s.student_id or 'N/A' }}</td>
 
 <td>
 <span class="badge bg-success p-2">
-{{ s[9] }}%
+{{ s.percentage }}%
 </span>
 </td>
 
 <td>
 
-<a href="/student/{{ s[0] }}" class="btn btn-primary btn-sm">View</a>
+<a href="/student/{{ s.student_id }}" class="btn btn-primary btn-sm">View</a>
 
-<a href="/update/{{ s[0] }}" class="btn btn-warning btn-sm">Edit</a>
+{% if role == 'admin' or role == 'teacher' %}
+<a href="/upgrade_semester/{{ s.student_id }}" class="btn btn-success btn-sm" title="Upgrade to next semester">📚 Upgrade</a>
+{% endif %}
 
-<a href="/delete/{{ s[0] }}" 
+{% if role == 'admin' %}
+<a href="/update/{{ s.student_id }}" class="btn btn-warning btn-sm">Edit</a>
+
+<a href="/delete/{{ s.student_id }}" 
    class="btn btn-danger btn-sm"
    onclick="return confirm('Are you sure?')">
 Delete
 </a>
 
-<a href="/report/{{ s[0] }}" class="btn btn-info btn-sm">PDF</a>
+<a href="/report/{{ s.student_id }}" class="btn btn-info btn-sm">PDF</a>
+{% endif %}
 
 </td>
 
@@ -63,34 +96,36 @@ Delete
 </tbody>
 </table>
 
-</div>
-
-{% endfor %}
+{% endif %}
 
 </div>
 
-<!-- 🔥 SEARCH SCRIPT -->
+<!-- 🔥 SEARCH SCRIPT (Fixed) -->
 <script>
-document.getElementById("search").addEventListener("keyup", function() {
-    let value = this.value.toLowerCase();
-
-    document.querySelectorAll(".class-block").forEach(block => {
-        let rows = block.querySelectorAll(".student-row");
-        let visible = 0;
-
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById("search");
+    searchInput.addEventListener("keyup", function() {
+        let value = this.value.toLowerCase();
+        const rows = document.querySelectorAll(".student-row");
+        
+        let visibleCount = 0;
         rows.forEach(row => {
             let name = row.querySelector(".name").innerText.toLowerCase();
             let roll = row.querySelector(".roll").innerText.toLowerCase();
 
             if (name.includes(value) || roll.includes(value)) {
                 row.style.display = "";
-                visible++;
+                visibleCount++;
             } else {
                 row.style.display = "none";
             }
         });
-
-        block.style.display = visible ? "" : "none";
+        
+        // Show/hide students count
+        const countEl = document.querySelector('h5');
+        if (countEl) {
+            countEl.textContent = `🎓 ${visibleCount} Students`;
+        }
     });
 });
 </script>

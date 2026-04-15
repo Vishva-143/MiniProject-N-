@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+
+{% block title %}Verify OTP - Academic System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow-lg border-0 rounded-4 p-5 mb-5 login-glass">
+      <div class="card-body text-center">
+        <i class="bi bi-shield-check text-success mb-4" style="font-size: 4rem;"></i>
+        <h2 class="fw-bold text-white mb-4">Verify OTP</h2>
+        <p class="text-light mb-4">Enter 6-digit code sent to <strong id="phoneDisplay">{{ session.get('otp_phone', '') }}</strong></p>
+        <div id="timer" class="badge bg-warning text-dark fs-6 mb-4" style="font-weight: bold;">02:00</div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show mb-4" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('verify_otp') }}">
+          <div class="mb-4">
+            <label for="otp" class="form-label fw-bold text-white">Enter OTP</label>
+            <div class="input-group">
+              <input type="text" class="form-control login-input text-center" id="otp" name="otp" 
+                     placeholder="123456" pattern="[0-9]{6}" maxlength="6" required style="font-size: 1.5rem; letter-spacing: 0.3rem;">
+              <button type="button" class="btn btn-outline-light" id="resendOtp">
+                <i class="bi bi-arrow-clockwise"></i> Resend
+              </button>
+            </div>
+            <div class="form-text text-light">OTP expires in <span id="countdown">2:00</span></div>
+          </div>
+
+          <button type="submit" class="btn login-btn w-100 fw-bold py-3 mb-3">
+            <i class="bi bi-check-circle-fill me-2"></i>Verify & Reset Password
+          </button>
+        </form>
+
+        <div class="text-center">
+          <a href="{{ url_for('login') }}" class="link-light text-decoration-none">
+            <i class="bi bi-arrow-left me-2"></i>Back to Login
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let timeLeft = 120;
+const timerEl = document.getElementById('timer');
+const countdownEl = document.getElementById('countdown');
+const resendBtn = document.getElementById('resendOtp');
+
+function updateTimer() {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  
+  if (timeLeft <= 0) {
+    resendBtn.disabled = false;
+    resendBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Resend OTP';
+  }
+  timeLeft--;
+}
+
+const interval = setInterval(updateTimer, 1000);
+
+resendBtn.addEventListener('click', function() {
+  if (!this.disabled) {
+    // Resend logic can be added here
+    window.location.reload();
+  }
+});
+</script>
+{% endblock %}
+

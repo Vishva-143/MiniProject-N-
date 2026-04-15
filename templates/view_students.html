@@ -33,26 +33,26 @@
 
 {% for s in students %}
 <tr>
-<td>{{ s[0] }}</td>
-<td>{{ s[1] }}</td>
-<td>{{ s[2] }}</td>
-<td>{{ s[3] }}</td>
-<td>{{ s[4] }}</td>
-<td>{{ s[5] }}</td>
-<td>{{ s[6] }}</td>
-<td>{{ s[7] }}</td>
-<td>{{ s[8] }}</td>
-<td>{{ s[9] }}</td>
+<td>{{ s.student_id }}</td>
+<td>{{ s.name }}</td>
+<td>{{ s.roll_no }}</td>
+<td>{{ s.english }}</td>
+<td>{{ s.mathematics }}</td>
+<td>{{ s.physics }}</td>
+<td>{{ s.chemistry }}</td>
+<td>{{ s.computer_science }}</td>
+<td>{{ s.total }}</td>
+<td>{{ s.percentage }}</td>
 <td>
-<a href="/update/{{ s[0] }}" class="btn btn-warning btn-sm">Edit</a>
-<a href="/delete/{{ s[0] }}" class="btn btn-danger btn-sm">Delete</a>
+<a href="/update/{{ s.student_id }}" class="btn btn-warning btn-sm">Edit</a>
+<a href="/delete/{{ s.student_id }}" class="btn btn-danger btn-sm">Delete</a>
 </td>
 </tr>
 {% endfor %}
 
 </table>
 
-<a href="/dashboard" class="btn btn-secondary">Back</a>
+<a href="/admin_dashboard" class="btn btn-secondary">Back</a>
 
 </body>
 </html>

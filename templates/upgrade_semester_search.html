@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Upgrade Semester - Search Student{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <!-- Search Card -->
+            <div class="card shadow-lg border-0 rounded-4 p-5 mb-4">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-search text-primary" style="font-size: 3rem;"></i>
+                        <h2 class="fw-bold text-dark mt-3">Search Student for Semester Upgrade</h2>
+                        <p class="text-muted">Enter Student ID or Name to find a student</p>
+                    </div>
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'info' if category == 'info' else 'success' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" class="mt-4">
+                        <div class="input-group input-group-lg">
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                name="student_search" 
+                                placeholder="Enter Student ID (e.g., MBA001) or Name"
+                                value="{{ search_query }}"
+                                required
+                                autofocus
+                            >
+                            <button class="btn btn-primary fw-bold" type="submit">
+                                <i class="bi bi-search me-2"></i>Search
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            💡 You can search by Student ID (MBA001, MCA002) or Student Name (John Doe)
+                        </small>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Results Card -->
+            {% if students %}
+            <div class="card shadow-lg border-0 rounded-4 p-4">
+                <div class="card-body">
+                    <h4 class="fw-bold mb-4">
+                        <i class="bi bi-list-check text-success me-2"></i>
+                        Found {{ students|length }} Student(s)
+                    </h4>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Branch</th>
+                                    <th>Current Semester</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-primary">{{ student.student_id }}</strong>
+                                    </td>
+                                    <td>{{ student.name }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ student.branch }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">Sem {{ student.semester }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="/upgrade_semester/{{ student.student_id }}" class="btn btn-success btn-sm">
+                                            <i class="bi bi-arrow-up-circle me-1"></i>Upgrade
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mt-4">
+                        <strong>ℹ️ Note:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Click <strong>Upgrade</strong> to proceed with semester upgrade for the selected student</li>
+                            <li>The system will automatically assign new subjects for the upgraded semester</li>
+                            <li>Previous semester marks will be preserved</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% elif search_query %}
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>No Results Found</strong><br>
+                No students match "{{ search_query }}". Please try another search.
+            </div>
+            {% endif %}
+
+            <!-- Back Button -->
+            <div class="text-center mt-4">
+                <a href="{{ url_for('students') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Students
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('input[name="student_search"]');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    });
+</script>
+{% endblock %}

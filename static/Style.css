@@ -164,3 +164,99 @@ h3 {
         width: 100%;
     }
 }
+
+/* LOGIN PAGE SPECIFIC */
+.login-glass {
+    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+}
+
+.role-tab {
+    border-radius: 50px !important;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    border: none;
+}
+
+.role-tab.active {
+    background: linear-gradient(45deg, #38bdf8, #0ea5e9) !important;
+    box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
+}
+
+.login-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.login-input::placeholder {
+    color: #94a3b8;
+}
+
+.login-input:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 0.2rem rgba(56, 189, 248, 0.25);
+}
+
+.captcha-display {
+    background: rgba(0, 0, 0, 0.5);
+    font-weight: bold;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    min-width: 100px;
+    color: #f1f5f9;
+}
+
+.login-btn {
+    background: linear-gradient(45deg, #38bdf8, #0ea5e9);
+    border: none;
+    font-weight: 600;
+    padding: 12px;
+    transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(56, 189, 248, 0.4);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+/* SUBJECTS SELECTION - SCROLLABLE + SUMMARY */
+.scrollable-subjects {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 15px;
+  background: rgba(255,255,255,0.05);
+}
+#selectedSubjects {
+  color: white;
+  margin-top: 10px;
+}
+#selectedSubjects div {
+  background: rgba(34,197,94,0.2);
+  padding: 8px 12px;
+  margin: 5px 0;
+  border-radius: 8px;
+  border-left: 4px solid #22c55e;
+}

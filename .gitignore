@@ -1,0 +1,21 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Uploads (reset if needed)
+static/uploads/*
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
