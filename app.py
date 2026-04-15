@@ -355,8 +355,16 @@ def admin_dashboard():
 
     cur.execute(
         """
-        SELECT ROUND(AVG((internal_exam_1+internal_exam_2+internal_exam_3)/120*100),2) as avg
-        FROM marks
+        SELECT ROUND(AVG(student_percentage),2) AS avg
+        FROM (
+            SELECT s.student_id,
+                   COALESCE(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3),0) /
+                   NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100 AS student_percentage
+            FROM students s
+            LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id
+            LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id
+            GROUP BY s.student_id
+        ) AS summary
         """
     )
     row = cur.fetchone()
@@ -365,9 +373,11 @@ def admin_dashboard():
     cur.execute(
         """
         SELECT s.name,
-               ROUND(COALESCE(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3),0) / 120 * 100, 2) AS percentage
+               COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) /
+               NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS percentage
         FROM students s
-        LEFT JOIN marks m ON m.student_id = s.student_id
+        LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id
+        LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id
         GROUP BY s.student_id, s.name
         ORDER BY percentage DESC
         LIMIT 1
@@ -379,9 +389,11 @@ def admin_dashboard():
     cur.execute(
         """
         SELECT s.name,
-               ROUND(COALESCE(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3),0) / 120 * 100, 2) AS pct
+               COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) /
+               NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct
         FROM students s
-        LEFT JOIN marks m ON m.student_id = s.student_id
+        LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id
+        LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id
         GROUP BY s.student_id, s.name
         ORDER BY pct DESC
         LIMIT 15
@@ -397,9 +409,11 @@ def admin_dashboard():
         FROM (
             SELECT s.student_id,
                    CONCAT(COALESCE(s.branch,''), ' Sem ', COALESCE(s.semester,0)) AS cls,
-                   ROUND(COALESCE(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3),0) / 120 * 100, 2) AS percentage
+                   COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) /
+                   NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS percentage
             FROM students s
-            LEFT JOIN marks m ON m.student_id = s.student_id
+            LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id
+            LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id
             GROUP BY s.student_id, s.branch, s.semester
         ) AS sub
         GROUP BY cls
@@ -830,18 +844,218 @@ def student_dashboard():
     cur = conn.cursor(buffered=True, dictionary=True)
     cur.execute("SELECT * FROM students WHERE student_id=%s", (g.user_id,))
     student = cur.fetchone()
-    cur.execute(
-        """
-        SELECT s.subject_name, m.internal_exam_1, m.internal_exam_2, m.internal_exam_3
-        FROM marks m JOIN subjects s ON m.subject_id = s.id
-        WHERE m.student_id=%s
-        """,
-        (g.user_id,),
-    )
-    marks = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template("student_dashboard.html", student=student, marks=marks)
+    return render_template("student_dashboard.html", student=student)
+
+
+@app.route("/student_performance")
+def student_performance():
+    redir = require_roles("student")
+    if redir:
+        return redir
+
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+    cur.execute("SELECT * FROM students WHERE student_id=%s", (g.user_id,))
+    student = cur.fetchone()
+    if not student:
+        cur.close()
+        conn.close()
+        abort(404)
+
+    branch_name = ""
+    if student.get("branch_id"):
+        cur.execute("SELECT name FROM branches WHERE id=%s", (student["branch_id"],))
+        br = cur.fetchone()
+        if br:
+            branch_name = br["name"]
+    if not branch_name:
+        branch_name = student.get("branch") or ""
+
+    cur.execute("SELECT id, sem_no FROM semesters ORDER BY sem_no")
+    semesters = cur.fetchall()
+
+    current_semester_id = student.get("semester_id")
+    current_semester_no = student.get("semester")
+    if not current_semester_id and current_semester_no is not None:
+        try:
+            current_semester_id = semester_id_by_num(cur, current_semester_no)
+        except Exception:
+            current_semester_id = None
+
+    if current_semester_id and not current_semester_no:
+        cur.execute("SELECT sem_no FROM semesters WHERE id=%s", (current_semester_id,))
+        sem_row = cur.fetchone()
+        current_semester_no = sem_row["sem_no"] if sem_row else None
+
+    previous_semester_id = None
+    previous_semester_no = None
+    try:
+        sem_no_val = int(current_semester_no) if current_semester_no is not None else None
+    except (TypeError, ValueError):
+        sem_no_val = None
+
+    if sem_no_val and sem_no_val > 1:
+        previous_semester_no = sem_no_val - 1
+        previous_semester_id = semester_id_by_num(cur, previous_semester_no)
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "student_performance.html",
+        student=student,
+        branch_name=branch_name,
+        semesters=semesters,
+        current_semester_id=current_semester_id,
+        current_semester_no=current_semester_no,
+        previous_semester_id=previous_semester_id,
+        previous_semester_no=previous_semester_no,
+    )
+
+
+@app.route("/edit_student_profile", methods=["GET", "POST"])
+def edit_student_profile():
+    redir = require_roles("student")
+    if redir:
+        return redir
+
+    student_id = g.user_id
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+
+    if request.method == "GET":
+        # Fetch current student data
+        cur.execute(
+            "SELECT student_id as id, name, email, dob, mobile, father_mobile, photo FROM students WHERE student_id = %s",
+            (student_id,),
+        )
+        student = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not student:
+            flash("Student not found", "danger")
+            return redirect(url_for("student_dashboard"))
+
+        return render_template("student_edit_profile.html", student=student)
+
+    elif request.method == "POST":
+        # Handle profile update
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        dob = request.form.get("dob", "").strip()
+        mobile = request.form.get("mobile", "").strip()
+        father_mobile = request.form.get("father_mobile", "").strip()
+        new_password = request.form.get("new_password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+        photo_file = request.files.get("photo")
+
+        # Validation
+        errors = []
+
+        if not name:
+            errors.append("Name is required")
+
+        if not email:
+            errors.append("Email is required")
+        elif "@" not in email or "." not in email:
+            errors.append("Invalid email format")
+
+        if dob and not is_valid_date(dob):
+            errors.append("Invalid date of birth format (YYYY-MM-DD)")
+
+        if mobile and not mobile.isdigit() or (mobile and len(mobile) != 10):
+            errors.append("Mobile number must be 10 digits")
+
+        if father_mobile and (not father_mobile.isdigit() or len(father_mobile) != 10):
+            errors.append("Father's mobile number must be 10 digits")
+
+        if new_password:
+            if len(new_password) < 6:
+                errors.append("Password must be at least 6 characters")
+            if new_password != confirm_password:
+                errors.append("Passwords do not match")
+
+        if errors:
+            for error in errors:
+                flash(error, "danger")
+            return redirect(url_for("edit_student_profile"))
+
+        # Handle photo upload
+        photo_filename = None
+        if photo_file and photo_file.filename:
+            if photo_file.filename.rsplit(".", 1)[1].lower() in {"jpg", "jpeg", "png", "gif"}:
+                photo_filename = secure_filename(
+                    f"student_{student_id}_{datetime.now().timestamp()}.png"
+                )
+                upload_path = os.path.join(UPLOAD_FOLDER, photo_filename)
+                os.makedirs(os.path.dirname(upload_path), exist_ok=True)
+                photo_file.save(upload_path)
+            else:
+                flash("Invalid image format. Use JPG, PNG, or GIF", "danger")
+                return redirect(url_for("edit_student_profile"))
+
+        # Update database
+        try:
+            if new_password:
+                hashed_password = bcrypt.hashpw(
+                    new_password.encode("utf-8"), bcrypt.gensalt()
+                ).decode("utf-8")
+                if photo_filename:
+                    cur.execute(
+                        """UPDATE students 
+                           SET name = %s, email = %s, dob = %s, mobile = %s, 
+                               father_mobile = %s, password = %s, photo = %s 
+                           WHERE student_id = %s""",
+                        (name, email, dob, mobile, father_mobile, hashed_password, photo_filename, student_id),
+                    )
+                else:
+                    cur.execute(
+                        """UPDATE students 
+                           SET name = %s, email = %s, dob = %s, mobile = %s, 
+                               father_mobile = %s, password = %s 
+                           WHERE student_id = %s""",
+                        (name, email, dob, mobile, father_mobile, hashed_password, student_id),
+                    )
+            else:
+                if photo_filename:
+                    cur.execute(
+                        """UPDATE students 
+                           SET name = %s, email = %s, dob = %s, mobile = %s, 
+                               father_mobile = %s, photo = %s 
+                           WHERE student_id = %s""",
+                        (name, email, dob, mobile, father_mobile, photo_filename, student_id),
+                    )
+                else:
+                    cur.execute(
+                        """UPDATE students 
+                           SET name = %s, email = %s, dob = %s, mobile = %s, 
+                               father_mobile = %s 
+                           WHERE student_id = %s""",
+                        (name, email, dob, mobile, father_mobile, student_id),
+                    )
+
+            conn.commit()
+            flash("Profile updated successfully!", "success")
+            return redirect(url_for("student_dashboard"))
+
+        except mysql_errors.Error as e:
+            flash(f"Database error: {str(e)}", "danger")
+            return redirect(url_for("edit_student_profile"))
+        finally:
+            cur.close()
+            conn.close()
+
+
+def is_valid_date(date_str):
+    """Validate date format YYYY-MM-DD"""
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
 
 
 @app.route("/teacher/<teacher_id>")
@@ -1023,26 +1237,50 @@ def get_marks(student_id):
 
     out = []
     grand = 0
+    exam1_total = 0
+    exam2_total = 0
+    exam3_total = 0
     for r in rows:
-        t = int(r["marks1"]) + int(r["marks2"]) + int(r["marks3"])
+        m1 = int(r["marks1"])
+        m2 = int(r["marks2"])
+        m3 = int(r["marks3"])
+        t = m1 + m2 + m3
         grand += t
+        exam1_total += m1
+        exam2_total += m2
+        exam3_total += m3
         out.append(
             {
                 "subject_id": r["subject_id"],
                 "subject_name": r["subject_name"],
-                "marks1": int(r["marks1"]),
-                "marks2": int(r["marks2"]),
-                "marks3": int(r["marks3"]),
+                "marks1": m1,
+                "marks2": m2,
+                "marks3": m3,
                 "total_marks": t,
             }
         )
     n = len(out) or 1
     max_possible = n * 120
     pct = round((grand / max_possible) * 100, 2) if max_possible else 0
+    exam_max = n * 40
+    exam1_pct = round((exam1_total / exam_max) * 100, 2) if exam_max else 0
+    exam2_pct = round((exam2_total / exam_max) * 100, 2) if exam_max else 0
+    exam3_pct = round((exam3_total / exam_max) * 100, 2) if exam_max else 0
     return jsonify(
-        {"marks": out, "summary": {"total_marks": grand, "percentage": pct}}
+        {
+            "marks": out,
+            "summary": {
+                "total_marks": grand,
+                "percentage": pct,
+                "exam1_total": exam1_total,
+                "exam2_total": exam2_total,
+                "exam3_total": exam3_total,
+                "exam1_percentage": exam1_pct,
+                "exam2_percentage": exam2_pct,
+                "exam3_percentage": exam3_pct,
+            },
+        }
     )
-
 
 @app.route("/update_marks", methods=["POST"])
 def update_marks():
@@ -1760,11 +1998,13 @@ def analytics():
         params = [selected_class_id]
 
     cur.execute(
-        "SELECT s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / 120 * 100, 2), 0) AS pct, "
+        "SELECT s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct, "
         "COALESCE(c.class_name, CONCAT(s.branch, ' Sem ', s.semester)) AS class_name "
         "FROM students s "
         "LEFT JOIN classes c ON s.class_id=c.id "
-        "LEFT JOIN marks m ON m.student_id = s.student_id "
+        "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        "LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
         + filter_clause
         + " GROUP BY s.student_id, s.name, c.class_name, s.branch, s.semester ORDER BY pct DESC LIMIT 1",
         params,
@@ -1774,9 +2014,11 @@ def analytics():
 
     cur.execute(
         "SELECT ROUND(AVG(pct),2) AS a FROM ("
-        "SELECT COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / 120 * 100, 2), 0) AS pct "
+        "SELECT COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct "
         "FROM students s "
-        "LEFT JOIN marks m ON m.student_id = s.student_id "
+        "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        "LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
         + filter_clause
         + " GROUP BY s.student_id) AS stats",
         params,
@@ -1784,10 +2026,12 @@ def analytics():
     avg = float((cur.fetchone() or {}).get("a") or 0)
 
     cur.execute(
-        "SELECT s.student_id, s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / 120 * 100, 2), 0) AS pct, "
+        "SELECT s.student_id, s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct, "
         "COALESCE(c.class_name, CONCAT(s.branch, ' Sem ', s.semester)) AS class_name "
         "FROM students s LEFT JOIN classes c ON s.class_id=c.id "
-        "LEFT JOIN marks m ON m.student_id = s.student_id "
+        "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        "LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
         + filter_clause
         + " GROUP BY s.student_id, s.name, c.class_name, s.branch, s.semester",
         params,

@@ -1,42 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Student Profile - {{ student.student_id }}{% endblock %}
+{% block title %}My Performance - {{ student.student_id }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row">
-        <div class="col-md-8 mx-auto">
+        <div class="col-md-12">
             <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white text-center">
-                    <h3>🎓 {{ student.name }} - {{ student.student_id }}</h3>
-                    <small class="text-light">{{ branch_name }} | Current Sem: {{ student.semester or student.semester_no }}</small>
+                <div class="card-header bg-info text-white text-center">
+                    <h3>📊 My Performance - {{ student.name }}</h3>
+                    <small class="text-light">{{ branch_name }} | Current Sem: {{ student.semester or 'N/A' }}</small>
                 </div>
                 
                 <div class="card-body">
-                    <!-- Profile Info -->
-                    <div class="row mb-4">
-                        <div class="col-md-4 text-center">
-                            {% if student.photo %}
-                            <img src="{{ url_for('static', filename='uploads/' ~ student.photo) }}" class="img-fluid rounded mx-auto d-block mb-3" style="max-height:220px;" alt="Student Photo">
-                            {% else %}
-                            <div class="bg-secondary text-white rounded p-4 mt-2">
-                                No photo available
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-8">
-                            <p><strong>ID:</strong> {{ student.student_id }}</p>
-                            <p><strong>Name:</strong> {{ student.name }}</p>
-                            <p><strong>Class:</strong> {{ student.class_name or student.branch or 'N/A' }}</p>
-                            <p><strong>Semester:</strong> {{ student.semester or 'N/A' }}</p>
-                            <p><strong>Branch:</strong> {{ branch_name or student.branch or 'N/A' }}</p>
-                            <p><strong>Gender:</strong> {{ student.gender or 'N/A' }}</p>
-                            <p><strong>DOB:</strong> {{ student.dob or 'N/A' }}</p>
-                            <p><strong>Mobile:</strong> {{ student.mobile or 'N/A' }}</p>
-                            <p><strong>Father Mobile:</strong> {{ student.father_mobile or 'N/A' }}</p>
-                            <p><strong>Email:</strong> {{ student.email or 'N/A' }}</p>
-                        </div>
-                    </div>
-
                     <!-- Semester Dropdown -->
                     <div class="row mb-4">
                         <div class="col-12">
@@ -44,7 +19,7 @@
                             <select class="form-select" id="semesterSelect">
                                 <option value="">Choose semester...</option>
                                 {% for sem in semesters %}
-                                <option value="{{ sem.id }}" {% if student.semester_id and sem.id == student.semester_id %}selected{% endif %}>{{ sem.sem_no }}</option>
+                                <option value="{{ sem.id }}" {% if student.semester_id and sem.id == student.semester_id %}selected{% endif %}>Semester {{ sem.sem_no }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -70,9 +45,6 @@
                                             <th>Total</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
-                                            {% if role in ['admin', 'teacher'] %}
-                                            <th>Action</th>
-                                            {% endif %}
                                         </tr>
                                     </thead>
                                     <tbody id="currentMarksTableBody"></tbody>
@@ -138,9 +110,6 @@
                                             <th>Total</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
-                                            {% if role in ['admin', 'teacher'] %}
-                                            <th>Action</th>
-                                            {% endif %}
                                         </tr>
                                     </thead>
                                     <tbody id="previousMarksTableBody"></tbody>
@@ -206,9 +175,6 @@
                                             <th>Total</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
-                                            {% if role in ['admin', 'teacher'] %}
-                                            <th>Action</th>
-                                            {% endif %}
                                         </tr>
                                     </thead>
                                     <tbody id="selectedMarksTableBody"></tbody>
@@ -258,46 +224,10 @@
 
                     <!-- Actions -->
                     <div class="mt-4 text-end">
-                        <a href="{% if role in ['admin', 'teacher'] %}{{ url_for('students') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}" class="btn btn-secondary">← Back</a>
-                        <a href="{{ url_for('report_pdf', student_id=student.student_id) }}" class="btn btn-info">📄 PDF</a>
+                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Modal -->
-<div class="modal fade" id="editMarksModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Edit Marks</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="editMarksForm">
-                <div class="modal-body">
-                    <input type="hidden" id="editStudentId" name="student_id">
-                    <input type="hidden" id="editSubjectId" name="subject_id">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Exam 1 (out of 40):</label>
-                        <input type="number" class="form-control" id="marks1" name="marks1" min="0" max="40">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Exam 2 (out of 40):</label>
-                        <input type="number" class="form-control" id="marks2" name="marks2" min="0" max="40">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Exam 3 (out of 40):</label>
-                        <input type="number" class="form-control" id="marks3" name="marks3" min="0" max="40">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Marks</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -308,7 +238,7 @@ let currentBranchId = {{ student.branch_id or 0 }};
 let currentSemesterId = {{ current_semester_id or 0 }};
 let previousSemesterId = {{ previous_semester_id or 0 }};
 
-const isEditable = {{ 'true' if role in ['admin', 'teacher'] else 'false' }};
+const isEditable = false;
 
 function setLoading(prefix, visible) {
     const spinner = document.getElementById(`${prefix}LoadingSpinner`);
@@ -349,16 +279,13 @@ function displayMarks(data, prefix) {
     tbody.innerHTML = '';
 
     if (!data.marks.length) {
-        tbody.innerHTML = `<tr><td colspan="${isEditable ? 8 : 7}" class="text-center">No marks found for this semester.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center">No marks found for this semester.</td></tr>`;
     }
 
     data.marks.forEach((row) => {
         const total = row.total_marks;
         const percentage = total ? ((total / 120) * 100).toFixed(1) : '0.0';
         const grade = getSubjectGrade(total);
-        const editBtn = isEditable
-            ? `<td><button type="button" class="btn btn-sm btn-outline-primary edit-btn edit-btn-${prefix}" data-subject="${row.subject_id}" data-m1="${row.marks1}" data-m2="${row.marks2}" data-m3="${row.marks3}">Edit</button></td>`
-            : '';
 
         tbody.innerHTML += `
             <tr>
@@ -369,7 +296,6 @@ function displayMarks(data, prefix) {
                 <td class="fw-bold">${total}</td>
                 <td>${percentage}%</td>
                 <td><span class="badge bg-${getGradeColor(grade)}">${grade}</span></td>
-                ${editBtn}
             </tr>
         `;
     });
@@ -399,12 +325,6 @@ function displayMarks(data, prefix) {
     if (exam1GradeElem) exam1GradeElem.textContent = gradeFromPercent(data.summary.exam1_percentage || 0);
     if (exam2GradeElem) exam2GradeElem.textContent = gradeFromPercent(data.summary.exam2_percentage || 0);
     if (exam3GradeElem) exam3GradeElem.textContent = gradeFromPercent(data.summary.exam3_percentage || 0);
-
-    if (isEditable) {
-        document.querySelectorAll(`.edit-btn-${prefix}`).forEach((btn) => {
-            btn.addEventListener('click', (e) => openEditModal(e.target.dataset));
-        });
-    }
 }
 
 function getSubjectGrade(total) {
@@ -425,81 +345,33 @@ function getGradeColor(grade) {
     return colors[grade] || 'secondary';
 }
 
-async function openEditModal(data) {
-    document.getElementById('editStudentId').value = currentStudentId;
-    document.getElementById('editSubjectId').value = data.subject;
-    document.getElementById('marks1').value = data.m1;
-    document.getElementById('marks2').value = data.m2;
-    document.getElementById('marks3').value = data.m3;
-
-    const modal = new bootstrap.Modal(document.getElementById('editMarksModal'));
-    modal.show();
-
-    document.getElementById('editMarksForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const formData = {
-            student_id: currentStudentId,
-            subject_id: document.getElementById('editSubjectId').value,
-            marks1: parseInt(document.getElementById('marks1').value, 10),
-            marks2: parseInt(document.getElementById('marks2').value, 10),
-            marks3: parseInt(document.getElementById('marks3').value, 10)
-        };
-
-        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('editMarksModal'));
-        modalInstance.hide();
-
-        try {
-            const response = await fetch('/update_marks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            const result = await response.json();
-            if (result.success) {
-                alert('Marks updated!');
-                loadMarksSection('current', currentSemesterId);
-                if (previousSemesterId) {
-                    loadMarksSection('previous', previousSemesterId);
-                }
-            } else {
-                alert('Error: ' + (result.error || 'Unknown error'));
-            }
-        } catch (error) {
-            alert('Update failed');
-        }
-    };
-}
-
-document.getElementById('semesterSelect').addEventListener('change', () => {
-    const semesterId = document.getElementById('semesterSelect').value;
-    if (semesterId) {
-        loadMarksSection('selected', semesterId);
-    }
-});
-
-(function () {
-    if (currentSemesterId) {
-        loadMarksSection('current', currentSemesterId);
-    }
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadMarksSection('current', currentSemesterId);
     if (previousSemesterId) {
         loadMarksSection('previous', previousSemesterId);
     }
-})();
-</script>
 
-<style>
-.progress {
-    height: 25px;
-}
-.progress-bar {
-    transition: width 1s ease-in-out;
-}
-.table th {
-    border-top: none;
-}
-.badge {
-    font-size: 0.9em;
-}
-</style>
+    const semesterSelect = document.getElementById('semesterSelect');
+    if (semesterSelect) {
+        semesterSelect.addEventListener('change', (e) => {
+            const selectedId = parseInt(e.target.value, 10);
+            if (selectedId === currentSemesterId) {
+                loadMarksSection('selected', 0);
+                document.getElementById('selectedMarksSection').classList.add('d-none');
+                document.getElementById('currentMarksSection').classList.remove('d-none');
+            } else if (selectedId === previousSemesterId) {
+                loadMarksSection('selected', 0);
+                document.getElementById('selectedMarksSection').classList.add('d-none');
+                document.getElementById('previousMarksSection').classList.remove('d-none');
+            } else if (selectedId) {
+                document.getElementById('currentMarksSection').classList.add('d-none');
+                document.getElementById('previousMarksSection').classList.add('d-none');
+                loadMarksSection('selected', selectedId);
+            }
+        });
+    }
+});
+</script>
 
 {% endblock %}

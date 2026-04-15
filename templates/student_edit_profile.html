@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - Student{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Edit Your Profile</h4>
+                </div>
+                <div class="card-body p-4">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' if category == 'success' else 'warning' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" enctype="multipart/form-data" id="editProfileForm">
+                        <!-- Current Photo Display -->
+                        <div class="text-center mb-4">
+                            {% if student.photo %}
+                                <img src="{{ url_for('static', filename='uploads/' + student.photo) }}" 
+                                     alt="Student Photo" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #0d6efd;">
+                            {% else %}
+                                <div class="rounded-circle mb-3 d-inline-flex align-items-center justify-content-center bg-light" style="width: 120px; height: 120px; border: 3px solid #0d6efd;">
+                                    <i class="fas fa-user" style="font-size: 48px; color: #0d6efd;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Name Field -->
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ student.name }}" required>
+                            <small class="text-muted">Enter your full name</small>
+                        </div>
+
+                        <!-- Email Field -->
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address *</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ student.email }}" required>
+                            <small class="text-muted">We'll never share your email with anyone else</small>
+                        </div>
+
+                        <!-- Date of Birth Field -->
+                        <div class="mb-3">
+                            <label for="dob" class="form-label">Date of Birth</label>
+                            <input type="date" class="form-control" id="dob" name="dob" 
+                                   value="{{ student.dob if student.dob else '' }}">
+                            <small class="text-muted">Format: YYYY-MM-DD</small>
+                        </div>
+
+                        <!-- Mobile Number Field -->
+                        <div class="mb-3">
+                            <label for="mobile" class="form-label">Mobile Number</label>
+                            <input type="text" class="form-control" id="mobile" name="mobile" 
+                                   placeholder="10-digit number" maxlength="10" 
+                                   value="{{ student.mobile if student.mobile else '' }}" 
+                                   pattern="[0-9]{10}">
+                            <small class="text-muted">10 digits without spaces</small>
+                        </div>
+
+                        <!-- Father's Mobile Number Field -->
+                        <div class="mb-3">
+                            <label for="father_mobile" class="form-label">Father's Mobile Number</label>
+                            <input type="text" class="form-control" id="father_mobile" name="father_mobile" 
+                                   placeholder="10-digit number" maxlength="10" 
+                                   value="{{ student.father_mobile if student.father_mobile else '' }}" 
+                                   pattern="[0-9]{10}">
+                            <small class="text-muted">10 digits without spaces</small>
+                        </div>
+
+                        <!-- Photo Upload Field -->
+                        <div class="mb-3">
+                            <label for="photo" class="form-label">Profile Photo</label>
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/jpg,image/jpeg,image/png,image/gif">
+                            <small class="text-muted">Upload JPG, PNG, or GIF (max 5MB)</small>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Password Change Section -->
+                        <h5 class="mb-3">Change Password <span class="text-muted">(Optional)</span></h5>
+                        
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" 
+                                   placeholder="Leave blank to keep current password" minlength="6">
+                            <small class="text-muted">At least 6 characters</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                                   placeholder="Re-enter new password" minlength="6">
+                            <small class="text-muted">Must match the new password above</small>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="showPassword">
+                            <label class="form-check-label" for="showPassword">
+                                Show passwords
+                            </label>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary btn-lg flex-grow-1">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="alert alert-info mt-4" role="alert">
+                <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Important Information</h6>
+                <ul class="mb-0">
+                    <li>Fields marked with <span class="text-danger">*</span> are required</li>
+                    <li>Your changes will be saved immediately upon submission</li>
+                    <li>If you change your password, you'll need to log in again</li>
+                    <li>Mobile numbers should be 10 digits without country code</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show/Hide Password Toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const showPasswordCheckbox = document.getElementById('showPassword');
+        const newPasswordInput = document.getElementById('new_password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+
+        showPasswordCheckbox.addEventListener('change', function() {
+            const type = this.checked ? 'text' : 'password';
+            newPasswordInput.type = type;
+            confirmPasswordInput.type = type;
+        });
+    });
+
+    // Form Validation
+    document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        if (newPassword && confirmPassword && newPassword !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+        }
+
+        if (newPassword && newPassword.length < 6) {
+            e.preventDefault();
+            alert('Password must be at least 6 characters long!');
+        }
+    });
+</script>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+
+    .card-header {
+        border-radius: 10px 10px 0 0;
+        padding: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    input[type="date"],
+    input[type="email"],
+    input[type="text"],
+    input[type="password"] {
+        font-size: 1rem;
+        padding: 0.75rem;
+    }
+
+    .alert {
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}

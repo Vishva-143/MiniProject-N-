@@ -25,18 +25,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if request.path == '/student_details' or 'student' in request.path %}active fw-bold{% endif %}" href="/student_dashboard">
+                    <a class="nav-link {% if request.path == '/student_performance' %}active fw-bold{% endif %}" href="/student_performance">
                         <i class="bi bi-graph-up-arrow me-1"></i>My Performance
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == '/announcements' %}active fw-bold{% endif %}" href="/announcements">
                         <i class="bi bi-megaphone me-1"></i>Announcements
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.path == '/assistant' %}active fw-bold{% endif %}" href="/assistant">
-                        <i class="bi bi-robot me-1"></i>AI Assistant
                     </a>
                 </li>
                 <li class="nav-item">
