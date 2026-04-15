@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Academic Performance Analytics System
 
 A **full-stack web application** built using **Flask + MySQL + JavaScript** to manage, analyze, and visualize student academic performance dynamically.
@@ -260,3 +261,6 @@ Educational use only.
 ## Support
 
 If you like this project, star the repo, fork it, and share it.
+=======
+# MiniProject-N-
+>>>>>>> 7cd9113bdc32565128fd5d02f19bd36c3833bf84
