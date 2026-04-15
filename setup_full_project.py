@@ -9,13 +9,16 @@ from mysql.connector import errors as mysql_errors
 import bcrypt
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Database configuration
 DB_CONFIG = {
-    'host': '127.0.0.1',
-    'user': 'root',
-    'password': 'SriVishnu@143',
-    'port': 3306
+    'host': os.getenv('DB_HOST', '127.0.0.1'),
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', 'SriVishnu@143'),
+    'port': int(os.getenv('DB_PORT', 3306))
 }
 
 def get_connection(db=None):
