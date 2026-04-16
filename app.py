@@ -459,15 +459,30 @@ def students():
                 selected_class_name = cls["class_name"]
                 break
 
+    stats_query = (
+        "SELECT st.student_id, "
+        "COALESCE(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3), 0) AS total_marks, "
+        "COUNT(DISTINCT subj.id) AS subject_count "
+        "FROM students st "
+        "LEFT JOIN subjects subj ON st.branch_id = subj.branch_id AND st.semester_id = subj.semester_id "
+        "LEFT JOIN marks m ON m.student_id = st.student_id AND m.subject_id = subj.id "
+        "GROUP BY st.student_id"
+    )
+
+    base_query = (
+        "SELECT s.*, c.class_name, COALESCE(ROUND(stats.total_marks / NULLIF(stats.subject_count * 120, 0) * 100, 2), 0) AS percentage "
+        "FROM students s "
+        "LEFT JOIN classes c ON s.class_id = c.id "
+        "LEFT JOIN (" + stats_query + ") AS stats ON stats.student_id = s.student_id "
+    )
+
     if selected_class_id:
         cur.execute(
-            "SELECT s.*, c.class_name FROM students s LEFT JOIN classes c ON s.class_id = c.id WHERE s.class_id=%s ORDER BY s.student_id",
+            base_query + "WHERE s.class_id=%s ORDER BY s.student_id",
             (selected_class_id,),
         )
     else:
-        cur.execute(
-            "SELECT s.*, c.class_name FROM students s LEFT JOIN classes c ON s.class_id = c.id ORDER BY s.student_id"
-        )
+        cur.execute(base_query + "ORDER BY s.student_id")
 
     rows = cur.fetchall()
     for s in rows:
@@ -1368,6 +1383,50 @@ def teacher_subjects(teacher_id):
     return jsonify({"subjects": subs})
 
 
+@app.route("/get_students_for_class/<int:class_id>")
+def get_students_for_class(class_id):
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+    cur.execute(
+        "SELECT student_id, name, roll_no FROM students WHERE class_id=%s ORDER BY name, student_id",
+        (class_id,),
+    )
+    rows = cur.fetchall()
+    students = [
+        {
+            "student_id": r["student_id"],
+            "name": f"{r['name']} ({r['roll_no'] or r['student_id']})",
+        }
+        for r in rows
+    ]
+    cur.close()
+    conn.close()
+    return jsonify({"students": students})
+
+
+@app.route("/get_subjects_for_student/<student_id>")
+def get_subjects_for_student(student_id):
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+    cur.execute(
+        "SELECT branch_id, semester_id FROM students WHERE student_id=%s",
+        (student_id,),
+    )
+    student = cur.fetchone()
+    if not student or not student.get("branch_id") or not student.get("semester_id"):
+        cur.close()
+        conn.close()
+        return jsonify({"subjects": []})
+    cur.execute(
+        "SELECT id, subject_name FROM subjects WHERE branch_id=%s AND semester_id=%s ORDER BY subject_name",
+        (student["branch_id"], student["semester_id"]),
+    )
+    subjects = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify({"subjects": subjects})
+
+
 @app.route("/get_students_for_subject/<int:subject_id>")
 def get_students_for_subject(subject_id):
     conn = get_db()
@@ -1420,23 +1479,13 @@ def add_marks():
         redir = require_roles("teacher", "admin")
         if redir:
             return redir
-        teacher_id = request.args.get('as_teacher') or g.user_id
         conn = get_db()
         cur = conn.cursor(dictionary=True)
-        cur.execute(
-            """
-            SELECT s.id, s.subject_name
-            FROM subjects s
-            JOIN teacher_subjects ts ON s.id = ts.subject_id
-            WHERE ts.teacher_id = %s
-            ORDER BY s.subject_name
-            """,
-            (teacher_id,)
-        )
-        subjects = cur.fetchall()
+        cur.execute("SELECT id, class_name FROM classes ORDER BY class_name")
+        classes = cur.fetchall()
         cur.close()
         conn.close()
-        return render_template("add_marks.html", subjects=subjects)
+        return render_template("add_marks.html", classes=classes)
 
     if g.role not in ("teacher", "admin"):
         return jsonify({"success": False, "error": "forbidden"}), 403
@@ -1748,60 +1797,98 @@ def _pdf_student_report(student_id):
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=letter)
-    y = 760
+    width, height = letter
+    margin = 50
+    y = height - margin
+
+    c.setTitle(f"Student Report - {student_id}")
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, "Student Report")
-    y -= 28
-    c.setFont("Helvetica", 11)
-    if stu:
-        lines = [
-            f"ID: {stu.get('student_id','')}",
-            f"Name: {stu.get('name','')}",
-            f"Branch: {stu.get('branch','')}",
-            f"Semester: {stu.get('semester','')}",
-            f"Class: {stu.get('class_name','')}",
-            f"Gender: {stu.get('gender','')}",
-            f"DOB: {stu.get('dob','')}",
-            f"Mobile: {stu.get('mobile','')}",
-            f"Father Mobile: {stu.get('father_mobile','')}",
-            f"Email: {stu.get('email','')}",
-        ]
-        for line in lines:
-            c.drawString(50, y, line)
-            y -= 14
-            if y < 80:
-                c.showPage()
-                y = 760
+    c.drawString(margin, y, "Student Report")
+    y -= 24
+    c.setFont("Helvetica", 10)
+    c.drawString(margin, y, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    y -= 18
+    c.line(margin, y, width - margin, y)
+    y -= 18
+
+    student_fields = [
+        ("ID", stu.get("student_id", "")),
+        ("Name", stu.get("name", "")),
+        ("Branch", stu.get("branch", "")),
+        ("Semester", stu.get("semester", "")),
+        ("Class", stu.get("class_name", "")),
+        ("Gender", stu.get("gender", "")),
+        ("DOB", stu.get("dob", "")),
+        ("Mobile", stu.get("mobile", "")),
+        ("Father Mobile", stu.get("father_mobile", "")),
+        ("Email", stu.get("email", "")),
+    ]
+    for label, value in student_fields:
+        if y < margin + 60:
+            c.showPage()
+            y = height - margin
+            c.setFont("Helvetica", 10)
+        c.drawString(margin, y, f"{label}: {value}")
+        y -= 16
+
     y -= 10
-    c.drawString(50, y, "Subjects & Marks")
-    y -= 20
+    if y < margin + 80:
+        c.showPage()
+        y = height - margin
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(margin, y, "Subjects & Marks")
+    y -= 18
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin, y, "Subject")
+    c.drawString(margin + 220, y, "I1")
+    c.drawString(margin + 280, y, "I2")
+    c.drawString(margin + 340, y, "I3")
+    c.drawString(margin + 400, y, "Total")
+    y -= 14
+    c.line(margin, y, width - margin, y)
+    y -= 14
 
     total_marks = 0
     subject_count = 0
+    c.setFont("Helvetica", 10)
     for r in mk:
-        if y < 90:
+        if y < margin + 40:
             c.showPage()
-            y = 760
+            y = height - margin
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(margin, y, "Subject")
+            c.drawString(margin + 220, y, "I1")
+            c.drawString(margin + 280, y, "I2")
+            c.drawString(margin + 340, y, "I3")
+            c.drawString(margin + 400, y, "Total")
+            y -= 18
+            c.setFont("Helvetica", 10)
         m1 = int(r.get("internal_exam_1", 0))
         m2 = int(r.get("internal_exam_2", 0))
         m3 = int(r.get("internal_exam_3", 0))
         subj_total = m1 + m2 + m3
         total_marks += subj_total
         subject_count += 1
-        line = f"{r['subject_name']}: I1={m1}  I2={m2}  I3={m3}  Total={subj_total}"
-        c.drawString(50, y, line)
+        subject_name = r.get("subject_name", "")
+        c.drawString(margin, y, subject_name)
+        c.drawString(margin + 220, y, str(m1))
+        c.drawString(margin + 280, y, str(m2))
+        c.drawString(margin + 340, y, str(m3))
+        c.drawString(margin + 400, y, str(subj_total))
         y -= 14
 
-    max_total = subject_count * 75
+    max_total = subject_count * 120
     percentage = round((total_marks / max_total) * 100, 2) if max_total else 0
-    y -= 16
-    if y < 90:
+    y -= 18
+    if y < margin + 30:
         c.showPage()
-        y = 760
-    c.drawString(50, y, f"Total Marks: {total_marks}")
-    y -= 14
-    c.drawString(50, y, f"Percentage: {percentage}%")
-    y -= 14
+        y = height - margin
+    c.line(margin, y, width - margin, y)
+    y -= 16
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin, y, f"Total Marks: {total_marks}")
+    y -= 16
+    c.drawString(margin, y, f"Percentage: {percentage}%")
     c.save()
     buf.seek(0)
     return buf
@@ -1839,21 +1926,56 @@ def teacher_report(teacher_id):
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=letter)
-    y = 750
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "Teacher Profile")
+    width, height = letter
+    margin = 50
+    y = height - margin
+
+    c.setTitle(f"Teacher Profile - {teacher_id}")
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(margin, y, "Teacher Profile")
     y -= 24
-    c.setFont("Helvetica", 11)
+    c.setFont("Helvetica", 10)
+    c.drawString(margin, y, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    y -= 18
+    c.line(margin, y, width - margin, y)
+    y -= 18
+
     if t:
+        c.setFont("Helvetica", 10)
         for label, key in [
             ("ID", "teacher_id"),
             ("Name", "name"),
             ("Branch", "branch"),
             ("Phone", "phone"),
-            ("Subjects", "subjects"),
         ]:
-            c.drawString(50, y, f"{label}: {t.get(key) or ''}")
+            c.drawString(margin, y, f"{label}: {t.get(key) or ''}")
             y -= 16
+
+        subjects = t.get("subjects") or ""
+        c.drawString(margin, y, "Subjects:")
+        y -= 14
+        c.setFont("Helvetica", 9)
+        subject_parts = subjects.split(",") if subjects else []
+        current_line = ""
+        for part in subject_parts:
+            part = part.strip()
+            if not part:
+                continue
+            candidate = (current_line + ", " + part).strip(", ")
+            if len(candidate) > 80:
+                c.drawString(margin + 10, y, current_line)
+                y -= 14
+                current_line = part
+            else:
+                current_line = candidate
+            if y < margin + 30:
+                c.showPage()
+                y = height - margin
+                c.setFont("Helvetica", 9)
+        if current_line:
+            c.drawString(margin + 10, y, current_line)
+            y -= 14
+
     c.save()
     buf.seek(0)
     return send_file(
@@ -1965,20 +2087,25 @@ def analytics():
 
     conn = get_db()
     cur = conn.cursor(buffered=True, dictionary=True)
-    classes = fetch_semester_classes(cur)
+    cur.execute("SELECT id, sem_no FROM semesters ORDER BY sem_no")
+    semesters = cur.fetchall()
 
-    selected_class_id = request.args.get("class_id", type=int)
-    selected_class_name = None
-    if selected_class_id:
-        for cls in classes:
-            if cls["id"] == selected_class_id:
-                selected_class_name = cls["class_name"]
+    selected_semester_id = request.args.get("semester_id", type=int)
+    selected_semester_name = None
+    if selected_semester_id:
+        for sem in semesters:
+            if sem["id"] == selected_semester_id:
+                selected_semester_name = f"Semester {sem['sem_no']}"
                 break
+
+    selected_exam = request.args.get("exam", "exam1")
+    if selected_exam not in ("exam1", "exam2", "exam3"):
+        selected_exam = "exam1"
 
     filter_clause = ""
     params = []
     teacher = None
-    teacher_stats = None
+    subject_join = ""
     if g.role == "teacher":
         cur.execute(
             "SELECT t.*, "
@@ -1989,21 +2116,42 @@ def analytics():
             (g.user_id,),
         )
         teacher = cur.fetchone()
-        branch_filter = "WHERE s.branch=%s"
-        params = [teacher.get("branch") if teacher else ""]
-        filter_clause = branch_filter if teacher else ""
+        if teacher:
+            subject_join = "JOIN teacher_subjects ts ON ts.subject_id = subj.id"
+            params = [g.user_id]
+        else:
+            subject_join = ""
+            params = []
+    else:
+        subject_join = ""
+        params = []
 
-    elif g.role == "admin" and selected_class_id:
-        filter_clause = "WHERE s.class_id=%s"
-        params = [selected_class_id]
+    conditions = []
+    if g.role == "teacher":
+        conditions.append("ts.teacher_id=%s")
+    if selected_semester_id:
+        conditions.append("s.semester_id=%s")
+        params.append(selected_semester_id)
+
+    filter_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+    exam_column = (
+        "m.internal_exam_1"
+        if selected_exam == "exam1"
+        else "m.internal_exam_2"
+        if selected_exam == "exam2"
+        else "m.internal_exam_3"
+    )
 
     cur.execute(
-        "SELECT s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
-        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct, "
+        "SELECT s.name, COALESCE(ROUND(SUM(COALESCE(" + exam_column + ",0)) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 40,0) * 100, 2), 0) AS pct, "
+        "COALESCE(ROUND(SUM(COALESCE(" + exam_column + ",0)), 2), 0) AS score, "
         "COALESCE(c.class_name, CONCAT(s.branch, ' Sem ', s.semester)) AS class_name "
         "FROM students s "
         "LEFT JOIN classes c ON s.class_id=c.id "
         "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        + subject_join + " "
         "LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
         + filter_clause
         + " GROUP BY s.student_id, s.name, c.class_name, s.branch, s.semester ORDER BY pct DESC LIMIT 1",
@@ -2014,10 +2162,11 @@ def analytics():
 
     cur.execute(
         "SELECT ROUND(AVG(pct),2) AS a FROM ("
-        "SELECT COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
-        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct "
+        "SELECT COALESCE(ROUND(SUM(COALESCE(" + exam_column + ",0)) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 40,0) * 100, 2), 0) AS pct "
         "FROM students s "
         "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        + subject_join + " "
         "LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
         + filter_clause
         + " GROUP BY s.student_id) AS stats",
@@ -2026,11 +2175,13 @@ def analytics():
     avg = float((cur.fetchone() or {}).get("a") or 0)
 
     cur.execute(
-        "SELECT s.student_id, s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
-        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS pct, "
+        "SELECT s.student_id, s.name, COALESCE(ROUND(SUM(COALESCE(" + exam_column + ",0)) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 40,0) * 100, 2), 0) AS pct, "
+        "COALESCE(ROUND(SUM(COALESCE(" + exam_column + ",0)), 2), 0) AS score, "
         "COALESCE(c.class_name, CONCAT(s.branch, ' Sem ', s.semester)) AS class_name "
         "FROM students s LEFT JOIN classes c ON s.class_id=c.id "
         "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        + subject_join + " "
         "LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
         + filter_clause
         + " GROUP BY s.student_id, s.name, c.class_name, s.branch, s.semester",
@@ -2051,7 +2202,7 @@ def analytics():
             else "C"
             if cur_pct >= 70
             else "D"
-            if cur_pct >= 60
+            if cur_pct >= 40
             else "F"
         )
         status = "Pass" if cur_pct >= 40 else "Fail"
@@ -2060,6 +2211,8 @@ def analytics():
             {
                 "name": s["name"],
                 "class_name": s["class_name"],
+                "score": float(s["score"] or 0),
+                "pct": round(cur_pct, 1),
                 "current": round(cur_pct, 1),
                 "predicted": predicted,
                 "weak": "Lowest score subject" if status == "Fail" else "—",
@@ -2078,15 +2231,20 @@ def analytics():
     fail_rate = round(weak_count / student_count * 100, 2) if student_count else 0
 
     if g.role == "teacher" and teacher:
-        cur.execute(
+        teacher_query = (
             "SELECT DISTINCT st.student_id, st.name, st.branch, sem.sem_no "
             "FROM teacher_subjects ts "
             "JOIN subjects s ON ts.subject_id = s.id "
             "JOIN students st ON st.branch_id = s.branch_id AND st.semester_id = s.semester_id "
             "LEFT JOIN semesters sem ON st.semester_id = sem.id "
-            "WHERE ts.teacher_id=%s ORDER BY st.name",
-            (g.user_id,),
+            "WHERE ts.teacher_id=%s"
         )
+        teacher_params = [g.user_id]
+        if selected_semester_id:
+            teacher_query += " AND st.semester_id=%s"
+            teacher_params.append(selected_semester_id)
+        teacher_query += " ORDER BY st.name"
+        cur.execute(teacher_query, tuple(teacher_params))
         teacher_students = cur.fetchall()
         teacher_stats = {
             "teacher": teacher,
@@ -2108,9 +2266,10 @@ def analytics():
         topper=topper,
         avg=round(avg, 2),
         results=results,
-        classes=classes,
-        selected_class_id=selected_class_id,
-        selected_class_name=selected_class_name,
+        semesters=semesters,
+        selected_semester_id=selected_semester_id,
+        selected_semester_name=selected_semester_name,
+        selected_exam=selected_exam,
         teacher_stats=teacher_stats,
         student_count=student_count,
         weak_count=weak_count,
@@ -2130,19 +2289,44 @@ def assistant():
     conn = get_db()
     cur = conn.cursor(buffered=True, dictionary=True)
 
+    subject_filter_join = ""
+    subject_filter_where = ""
+    subject_filter_params = []
+    if g.role == "teacher":
+        subject_filter_join = " JOIN teacher_subjects ts ON ts.subject_id = subj.id"
+        subject_filter_where = " WHERE ts.teacher_id=%s"
+        subject_filter_params = [g.user_id]
+
+    base_stats_query = (
+        "SELECT s.name, COALESCE(ROUND(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3) / "
+        "NULLIF(COUNT(DISTINCT subj.id) * 120,0) * 100, 2), 0) AS percentage "
+        "FROM students s "
+        "LEFT JOIN subjects subj ON subj.branch_id = s.branch_id AND subj.semester_id = s.semester_id "
+        + subject_filter_join
+        + " LEFT JOIN marks m ON m.student_id = s.student_id AND m.subject_id = subj.id "
+        + subject_filter_where
+        + " GROUP BY s.student_id, s.name"
+    )
+
     if q == "topper":
         cur.execute(
-            "SELECT name, percentage FROM students ORDER BY percentage DESC LIMIT 1"
+            "SELECT name, percentage FROM (" + base_stats_query + ") AS sub ORDER BY percentage DESC LIMIT 1",
+            tuple(subject_filter_params),
         )
         r = cur.fetchone()
         answer = f"Topper: {r['name']} ({r['percentage']}%)" if r else "No data."
     elif q == "average":
-        cur.execute("SELECT AVG(percentage) AS a FROM students")
+        cur.execute(
+            "SELECT ROUND(AVG(percentage), 2) AS a FROM (" + base_stats_query + ") AS sub",
+            tuple(subject_filter_params),
+        )
         r = cur.fetchone()
         answer = f"Class average: {round(float(r['a'] or 0), 2)}%"
     elif q == "weak":
         cur.execute(
-            "SELECT name, percentage FROM students WHERE percentage < 60 ORDER BY percentage"
+            "SELECT name, percentage FROM (" + base_stats_query + ") AS sub "
+            "WHERE percentage < 60 ORDER BY percentage",
+            tuple(subject_filter_params),
         )
         rows = cur.fetchall()
         answer = (
@@ -2155,12 +2339,16 @@ def assistant():
         question = (request.form.get("question") or "").lower()
         if "topper" in question:
             cur.execute(
-                "SELECT name, percentage FROM students ORDER BY percentage DESC LIMIT 1"
+                "SELECT name, percentage FROM (" + base_stats_query + ") AS sub ORDER BY percentage DESC LIMIT 1",
+                tuple(subject_filter_params),
             )
             r = cur.fetchone()
             answer = f"Topper: {r['name']} ({r['percentage']}%)" if r else "No data."
         elif "average" in question or "mean" in question:
-            cur.execute("SELECT AVG(percentage) AS a FROM students")
+            cur.execute(
+                "SELECT ROUND(AVG(percentage), 2) AS a FROM (" + base_stats_query + ") AS sub",
+                tuple(subject_filter_params),
+            )
             r = cur.fetchone()
             answer = f"Average percentage: {round(float(r['a'] or 0), 2)}%"
         else:

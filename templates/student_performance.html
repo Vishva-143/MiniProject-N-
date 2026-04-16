@@ -22,6 +22,11 @@
                                 <option value="{{ sem.id }}" {% if student.semester_id and sem.id == student.semester_id %}selected{% endif %}>Semester {{ sem.sem_no }}</option>
                                 {% endfor %}
                             </select>
+                            <select class="form-select mt-3" id="examTypeSelect">
+                                <option value="exam1" selected>Exam 1 only</option>
+                                <option value="exam2">Exam 2 only</option>
+                                <option value="exam3">Exam 3 only</option>
+                            </select>
                         </div>
                     </div>
 
@@ -39,9 +44,9 @@
                                     <thead class="table-dark">
                                         <tr>
                                             <th>Subject</th>
-                                            <th>Exam 1</th>
-                                            <th>Exam 2</th>
-                                            <th>Exam 3</th>
+                                            <th class="exam-col exam1">Exam 1</th>
+                                            <th class="exam-col exam2">Exam 2</th>
+                                            <th class="exam-col exam3">Exam 3</th>
                                             <th>Total</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
@@ -52,19 +57,19 @@
                             </div>
                             <div class="alert alert-info mt-3">
                                 <div class="row text-center gy-2">
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam1">
                                         <h6 class="mb-1">Exam 1</h6>
                                         <p id="currentExam1Total" class="mb-1 fw-bold">0</p>
                                         <small id="currentExam1Pct">0%</small>
                                         <small id="currentExam1Grade" class="d-block">--</small>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam2">
                                         <h6 class="mb-1">Exam 2</h6>
                                         <p id="currentExam2Total" class="mb-1 fw-bold">0</p>
                                         <small id="currentExam2Pct">0%</small>
                                         <small id="currentExam2Grade" class="d-block">--</small>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam3">
                                         <h6 class="mb-1">Exam 3</h6>
                                         <p id="currentExam3Total" class="mb-1 fw-bold">0</p>
                                         <small id="currentExam3Pct">0%</small>
@@ -104,9 +109,9 @@
                                     <thead class="table-dark">
                                         <tr>
                                             <th>Subject</th>
-                                            <th>Exam 1</th>
-                                            <th>Exam 2</th>
-                                            <th>Exam 3</th>
+                                            <th class="exam-col exam1">Exam 1</th>
+                                            <th class="exam-col exam2">Exam 2</th>
+                                            <th class="exam-col exam3">Exam 3</th>
                                             <th>Total</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
@@ -117,19 +122,19 @@
                             </div>
                             <div class="alert alert-info mt-3">
                                 <div class="row text-center gy-2">
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam1">
                                         <h6 class="mb-1">Exam 1</h6>
                                         <p id="previousExam1Total" class="mb-1 fw-bold">0</p>
                                         <small id="previousExam1Pct">0%</small>
                                         <small id="previousExam1Grade" class="d-block">--</small>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam2">
                                         <h6 class="mb-1">Exam 2</h6>
                                         <p id="previousExam2Total" class="mb-1 fw-bold">0</p>
                                         <small id="previousExam2Pct">0%</small>
                                         <small id="previousExam2Grade" class="d-block">--</small>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam3">
                                         <h6 class="mb-1">Exam 3</h6>
                                         <p id="previousExam3Total" class="mb-1 fw-bold">0</p>
                                         <small id="previousExam3Pct">0%</small>
@@ -169,9 +174,9 @@
                                     <thead class="table-dark">
                                         <tr>
                                             <th>Subject</th>
-                                            <th>Exam 1</th>
-                                            <th>Exam 2</th>
-                                            <th>Exam 3</th>
+                                            <th class="exam-col exam1">Exam 1</th>
+                                            <th class="exam-col exam2">Exam 2</th>
+                                            <th class="exam-col exam3">Exam 3</th>
                                             <th>Total</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
@@ -184,19 +189,19 @@
                             <!-- Summary -->
                             <div class="alert alert-info mt-3">
                                 <div class="row text-center gy-2">
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam1">
                                         <h6 class="mb-1">Exam 1</h6>
                                         <p id="selectedExam1Total" class="mb-1 fw-bold">0</p>
                                         <small id="selectedExam1Pct">0%</small>
                                         <small id="selectedExam1Grade" class="d-block">--</small>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam2">
                                         <h6 class="mb-1">Exam 2</h6>
                                         <p id="selectedExam2Total" class="mb-1 fw-bold">0</p>
                                         <small id="selectedExam2Pct">0%</small>
                                         <small id="selectedExam2Grade" class="d-block">--</small>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-2 exam-summary exam3">
                                         <h6 class="mb-1">Exam 3</h6>
                                         <p id="selectedExam3Total" class="mb-1 fw-bold">0</p>
                                         <small id="selectedExam3Pct">0%</small>
@@ -239,6 +244,73 @@ let currentSemesterId = {{ current_semester_id or 0 }};
 let previousSemesterId = {{ previous_semester_id or 0 }};
 
 const isEditable = false;
+const marksStore = { current: null, previous: null, selected: null };
+
+function getSelectedExamType() {
+    const select = document.getElementById('examTypeSelect');
+    return select && select.value ? select.value : 'exam1';
+}
+
+function setExamColumnVisibility() {
+    const type = getSelectedExamType();
+    ['exam1', 'exam2', 'exam3'].forEach((exam) => {
+        const hidden = type !== exam;
+        document.querySelectorAll(`.exam-col.${exam}`).forEach((el) => {
+            el.classList.toggle('d-none', hidden);
+        });
+        document.querySelectorAll(`.exam-summary.${exam}`).forEach((el) => {
+            el.classList.toggle('d-none', hidden);
+        });
+    });
+}
+
+function updateExamSummary(prefix, data) {
+    const type = getSelectedExamType();
+    const count = data.marks.length || 1;
+    let total = data.summary.total_marks;
+    let percentage = data.summary.percentage;
+    if (type === 'exam1') {
+        total = data.summary.exam1_total || 0;
+        percentage = count ? ((total / (count * 40)) * 100) : 0;
+    } else if (type === 'exam2') {
+        total = data.summary.exam2_total || 0;
+        percentage = count ? ((total / (count * 40)) * 100) : 0;
+    } else if (type === 'exam3') {
+        total = data.summary.exam3_total || 0;
+        percentage = count ? ((total / (count * 40)) * 100) : 0;
+    }
+
+    const exam1Fail = data.marks.some((row) => row.marks1 < 16);
+    const exam2Fail = data.marks.some((row) => row.marks2 < 16);
+    const exam3Fail = data.marks.some((row) => row.marks3 < 16);
+
+    const totalElem = document.getElementById(`${prefix}TotalMarks`);
+    const percentElem = document.getElementById(`${prefix}Percentage`);
+    const gradeElem = document.getElementById(`${prefix}GradeSummary`);
+    const exam1TotalElem = document.getElementById(`${prefix}Exam1Total`);
+    const exam1PctElem = document.getElementById(`${prefix}Exam1Pct`);
+    const exam1GradeElem = document.getElementById(`${prefix}Exam1Grade`);
+    const exam2TotalElem = document.getElementById(`${prefix}Exam2Total`);
+    const exam2PctElem = document.getElementById(`${prefix}Exam2Pct`);
+    const exam2GradeElem = document.getElementById(`${prefix}Exam2Grade`);
+    const exam3TotalElem = document.getElementById(`${prefix}Exam3Total`);
+    const exam3PctElem = document.getElementById(`${prefix}Exam3Pct`);
+    const exam3GradeElem = document.getElementById(`${prefix}Exam3Grade`);
+
+    if (exam1TotalElem) exam1TotalElem.textContent = data.summary.exam1_total || 0;
+    if (exam1PctElem) exam1PctElem.textContent = `${(data.summary.exam1_percentage || 0).toFixed(1)}%`;
+    if (exam1GradeElem) exam1GradeElem.textContent = exam1Fail ? 'F' : gradeFromPercent(data.summary.exam1_percentage || 0);
+    if (exam2TotalElem) exam2TotalElem.textContent = data.summary.exam2_total || 0;
+    if (exam2PctElem) exam2PctElem.textContent = `${(data.summary.exam2_percentage || 0).toFixed(1)}%`;
+    if (exam2GradeElem) exam2GradeElem.textContent = exam2Fail ? 'F' : gradeFromPercent(data.summary.exam2_percentage || 0);
+    if (exam3TotalElem) exam3TotalElem.textContent = data.summary.exam3_total || 0;
+    if (exam3PctElem) exam3PctElem.textContent = `${(data.summary.exam3_percentage || 0).toFixed(1)}%`;
+    if (exam3GradeElem) exam3GradeElem.textContent = exam3Fail ? 'F' : gradeFromPercent(data.summary.exam3_percentage || 0);
+
+    if (totalElem) totalElem.textContent = total;
+    if (percentElem) percentElem.textContent = `${percentage.toFixed(1)}%`;
+    if (gradeElem) gradeElem.textContent = (type === 'exam1' ? exam1Fail : type === 'exam2' ? exam2Fail : exam3Fail) ? 'F' : gradeFromPercent(percentage);
+}
 
 function setLoading(prefix, visible) {
     const spinner = document.getElementById(`${prefix}LoadingSpinner`);
@@ -278,57 +350,42 @@ function displayMarks(data, prefix) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const examType = getSelectedExamType();
+    const examKey = examType === 'exam1' ? 'marks1' : examType === 'exam2' ? 'marks2' : examType === 'exam3' ? 'marks3' : null;
+    const maxScore = examKey ? 40 : 120;
+
     if (!data.marks.length) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center">No marks found for this semester.</td></tr>`;
     }
 
     data.marks.forEach((row) => {
-        const total = row.total_marks;
-        const percentage = total ? ((total / 120) * 100).toFixed(1) : '0.0';
-        const grade = getSubjectGrade(total);
+        const value = examKey ? row[examKey] : row.total_marks;
+        const percentage = maxScore ? ((value / maxScore) * 100).toFixed(1) : '0.0';
+        const grade = getSubjectGrade(row, examType, value, maxScore);
 
         tbody.innerHTML += `
             <tr>
                 <td><strong>${row.subject_name}</strong></td>
-                <td>${row.marks1}</td>
-                <td>${row.marks2}</td>
-                <td>${row.marks3}</td>
-                <td class="fw-bold">${total}</td>
+                <td class="exam-col exam1">${row.marks1}</td>
+                <td class="exam-col exam2">${row.marks2}</td>
+                <td class="exam-col exam3">${row.marks3}</td>
+                <td class="fw-bold">${value}</td>
                 <td>${percentage}%</td>
                 <td><span class="badge bg-${getGradeColor(grade)}">${grade}</span></td>
             </tr>
         `;
     });
 
-    const totalElem = document.getElementById(`${prefix}TotalMarks`);
-    const percentElem = document.getElementById(`${prefix}Percentage`);
-    const gradeElem = document.getElementById(`${prefix}GradeSummary`);
-    const exam1TotalElem = document.getElementById(`${prefix}Exam1Total`);
-    const exam2TotalElem = document.getElementById(`${prefix}Exam2Total`);
-    const exam3TotalElem = document.getElementById(`${prefix}Exam3Total`);
-    const exam1PctElem = document.getElementById(`${prefix}Exam1Pct`);
-    const exam2PctElem = document.getElementById(`${prefix}Exam2Pct`);
-    const exam3PctElem = document.getElementById(`${prefix}Exam3Pct`);
-    const exam1GradeElem = document.getElementById(`${prefix}Exam1Grade`);
-    const exam2GradeElem = document.getElementById(`${prefix}Exam2Grade`);
-    const exam3GradeElem = document.getElementById(`${prefix}Exam3Grade`);
-
-    if (totalElem) totalElem.textContent = data.summary.total_marks;
-    if (percentElem) percentElem.textContent = `${data.summary.percentage.toFixed(1)}%`;
-    if (gradeElem) gradeElem.textContent = gradeFromPercent(data.summary.percentage);
-    if (exam1TotalElem) exam1TotalElem.textContent = data.summary.exam1_total || 0;
-    if (exam2TotalElem) exam2TotalElem.textContent = data.summary.exam2_total || 0;
-    if (exam3TotalElem) exam3TotalElem.textContent = data.summary.exam3_total || 0;
-    if (exam1PctElem) exam1PctElem.textContent = `${(data.summary.exam1_percentage || 0).toFixed(1)}%`;
-    if (exam2PctElem) exam2PctElem.textContent = `${(data.summary.exam2_percentage || 0).toFixed(1)}%`;
-    if (exam3PctElem) exam3PctElem.textContent = `${(data.summary.exam3_percentage || 0).toFixed(1)}%`;
-    if (exam1GradeElem) exam1GradeElem.textContent = gradeFromPercent(data.summary.exam1_percentage || 0);
-    if (exam2GradeElem) exam2GradeElem.textContent = gradeFromPercent(data.summary.exam2_percentage || 0);
-    if (exam3GradeElem) exam3GradeElem.textContent = gradeFromPercent(data.summary.exam3_percentage || 0);
+    marksStore[prefix] = data;
+    updateExamSummary(prefix, data);
+    setExamColumnVisibility();
 }
 
-function getSubjectGrade(total) {
-    const p = (total / 120) * 100;
+function getSubjectGrade(row, examType, value, max = 120) {
+    if (examType === 'exam1' && row.marks1 < 16) return 'F';
+    if (examType === 'exam2' && row.marks2 < 16) return 'F';
+    if (examType === 'exam3' && row.marks3 < 16) return 'F';
+    const p = max ? (value / max) * 100 : 0;
     return gradeFromPercent(p);
 }
 
@@ -336,7 +393,7 @@ function gradeFromPercent(perc) {
     if (perc >= 90) return 'A';
     if (perc >= 80) return 'B';
     if (perc >= 70) return 'C';
-    if (perc >= 60) return 'D';
+    if (perc >= 40) return 'D';
     return 'F';
 }
 
@@ -353,22 +410,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const semesterSelect = document.getElementById('semesterSelect');
+    const examSelect = document.getElementById('examTypeSelect');
     if (semesterSelect) {
         semesterSelect.addEventListener('change', (e) => {
             const selectedId = parseInt(e.target.value, 10);
             if (selectedId === currentSemesterId) {
-                loadMarksSection('selected', 0);
                 document.getElementById('selectedMarksSection').classList.add('d-none');
                 document.getElementById('currentMarksSection').classList.remove('d-none');
+                document.getElementById('previousMarksSection').classList.add('d-none');
+                if (marksStore.current) displayMarks(marksStore.current, 'current');
             } else if (selectedId === previousSemesterId) {
-                loadMarksSection('selected', 0);
                 document.getElementById('selectedMarksSection').classList.add('d-none');
                 document.getElementById('previousMarksSection').classList.remove('d-none');
+                document.getElementById('currentMarksSection').classList.add('d-none');
+                if (marksStore.previous) displayMarks(marksStore.previous, 'previous');
             } else if (selectedId) {
                 document.getElementById('currentMarksSection').classList.add('d-none');
                 document.getElementById('previousMarksSection').classList.add('d-none');
                 loadMarksSection('selected', selectedId);
+            } else {
+                document.getElementById('selectedMarksSection').classList.add('d-none');
             }
+        });
+    }
+    if (examSelect) {
+        examSelect.addEventListener('change', () => {
+            ['current', 'previous', 'selected'].forEach((prefix) => {
+                const section = document.getElementById(`${prefix}MarksSection`);
+                if (section && !section.classList.contains('d-none') && marksStore[prefix]) {
+                    displayMarks(marksStore[prefix], prefix);
+                }
+            });
+            setExamColumnVisibility();
         });
     }
 });
