@@ -264,7 +264,14 @@
                     <!-- Actions -->
                     <div class="mt-4 text-end">
                         <a href="{% if role in ['admin', 'teacher'] %}{{ url_for('students') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}" class="btn btn-secondary">← Back</a>
-                        <a href="{{ url_for('report_pdf', student_id=student.student_id) }}" class="btn btn-info">📄 PDF</a>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('report_pdf', student_id=student.student_id) }}" class="btn btn-info" title="Download PDF Report">
+                                <i class="bi bi-file-pdf"></i> PDF
+                            </a>
+                            <a href="{{ url_for('report_excel', student_id=student.student_id) }}" class="btn btn-success" title="Download Excel Report">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Excel
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

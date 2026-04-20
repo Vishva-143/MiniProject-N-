@@ -119,9 +119,12 @@
                             <label class="form-label fw-semibold">
                                 <i class="bi bi-telephone-fill text-primary me-2"></i>Mobile Number
                             </label>
-                            <input type="tel" class="form-control form-control-lg" name="mobile_number" 
+                            <input type="tel" class="form-control form-control-lg" name="mobile_number" id="mobile_number"
                                    placeholder="10-digit mobile number" pattern="[0-9]{10}" 
                                    title="Please enter 10 digits only" required>
+                            <div id="mobile_error" class="text-danger small mt-1" style="display:none;">
+                                ⚠️ Mobile numbers cannot be the same. Please enter a different number.
+                            </div>
                         </div>
 
                         <!-- Father Mobile Number -->
@@ -129,9 +132,12 @@
                             <label class="form-label fw-semibold">
                                 <i class="bi bi-telephone-forward text-primary me-2"></i>Father's Mobile Number
                             </label>
-                            <input type="tel" class="form-control form-control-lg" name="father_mobile_number" 
+                            <input type="tel" class="form-control form-control-lg" name="father_mobile_number" id="father_mobile_number"
                                    placeholder="10-digit mobile number" pattern="[0-9]{10}" 
                                    title="Please enter 10 digits only" required>
+                            <div id="father_mobile_error" class="text-danger small mt-1" style="display:none;">
+                                ⚠️ Father's mobile number cannot be the same as student's mobile number.
+                            </div>
                         </div>
 
                         <!-- Photo Upload -->
@@ -168,6 +174,54 @@
 
 {% block scripts %}
     <script>
+        // Validate that mobile numbers are different
+        const mobileInput = document.getElementById('mobile_number');
+        const fatherMobileInput = document.getElementById('father_mobile_number');
+        const mobileError = document.getElementById('mobile_error');
+        const fatherMobileError = document.getElementById('father_mobile_error');
+        const form = document.querySelector('form');
+
+        function validateMobileNumbers() {
+            const mobileValue = mobileInput.value.trim();
+            const fatherMobileValue = fatherMobileInput.value.trim();
+            
+            if (mobileValue && fatherMobileValue && mobileValue === fatherMobileValue) {
+                mobileError.style.display = 'block';
+                fatherMobileError.style.display = 'block';
+                mobileInput.classList.add('is-invalid');
+                fatherMobileInput.classList.add('is-invalid');
+                return false;
+            } else {
+                mobileError.style.display = 'none';
+                fatherMobileError.style.display = 'none';
+                mobileInput.classList.remove('is-invalid');
+                fatherMobileInput.classList.remove('is-invalid');
+                return true;
+            }
+        }
+
+        // Add event listeners for real-time validation
+        if (mobileInput) {
+            mobileInput.addEventListener('blur', validateMobileNumbers);
+            mobileInput.addEventListener('input', validateMobileNumbers);
+        }
+
+        if (fatherMobileInput) {
+            fatherMobileInput.addEventListener('blur', validateMobileNumbers);
+            fatherMobileInput.addEventListener('input', validateMobileNumbers);
+        }
+
+        // Validate on form submit
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (!validateMobileNumbers()) {
+                    e.preventDefault();
+                    alert('⚠️ Error: Student mobile number and Father\'s mobile number cannot be the same!');
+                    return false;
+                }
+            });
+        }
+
         // Photo preview
         document.getElementById('photoInput').addEventListener('change', function(e) {
             const file = e.target.files[0];

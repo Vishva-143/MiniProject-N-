@@ -23,6 +23,8 @@ from flask import (
 )
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from werkzeug.utils import secure_filename
 
 load_dotenv()
@@ -532,6 +534,16 @@ def register_student():
         conn = get_db()
         cur = conn.cursor(buffered=True, dictionary=True)
         try:
+            # Validate mobile numbers are not the same
+            mobile_number = request.form.get("mobile_number", "").strip()
+            father_mobile_number = request.form.get("father_mobile_number", "").strip()
+            
+            if mobile_number and father_mobile_number and mobile_number == father_mobile_number:
+                flash("Error: Student mobile number and Father's mobile number cannot be the same. Please enter different numbers.", "error")
+                cur.close()
+                conn.close()
+                return render_template("register_student.html")
+            
             sem_no = parse_semester_choice(request.form.get("semester"))
             branch_name = request.form.get("branch", "MCA")
             bid = branch_id_by_name(cur, branch_name)
@@ -859,9 +871,83 @@ def student_dashboard():
     cur = conn.cursor(buffered=True, dictionary=True)
     cur.execute("SELECT * FROM students WHERE student_id=%s", (g.user_id,))
     student = cur.fetchone()
+    
+    if not student:
+        cur.close()
+        conn.close()
+        abort(404)
+    
+    # Fetch student's subjects with teacher info
+    cur.execute("""
+        SELECT s.id, s.subject_name, 
+               COALESCE(t.teacher_id, 'N/A') as teacher_id,
+               COALESCE(t.name, 'Not Assigned') as teacher_name,
+               COALESCE(t.phone, '') as teacher_phone,
+               COALESCE(t.email, '') as teacher_email
+        FROM student_subjects ss
+        JOIN subjects s ON ss.subject_id = s.id
+        LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id
+        LEFT JOIN teachers t ON ts.teacher_id = t.teacher_id
+        WHERE ss.student_id = %s
+        ORDER BY s.subject_name
+    """, (g.user_id,))
+    subjects = cur.fetchall()
+    
+    # Fetch marks data
+    cur.execute("""
+        SELECT s.id, s.subject_name,
+               COALESCE(m.internal_exam_1, 0) as exam_1,
+               COALESCE(m.internal_exam_2, 0) as exam_2,
+               COALESCE(m.internal_exam_3, 0) as exam_3
+        FROM student_subjects ss
+        JOIN subjects s ON ss.subject_id = s.id
+        LEFT JOIN marks m ON m.student_id = ss.student_id AND m.subject_id = s.id
+        WHERE ss.student_id = %s
+        ORDER BY s.subject_name
+    """, (g.user_id,))
+    marks_data = cur.fetchall()
+    
+    # Calculate total marks
+    total_marks = 0
+    subject_grades = []
+    for mark in marks_data:
+        exam_total = mark['exam_1'] + mark['exam_2'] + mark['exam_3']
+        total_marks += exam_total
+        
+        # Calculate grade based on average
+        avg = exam_total / 3 if exam_total > 0 else 0
+        if avg >= 90:
+            grade = 'A+'
+        elif avg >= 80:
+            grade = 'A'
+        elif avg >= 70:
+            grade = 'B'
+        elif avg >= 60:
+            grade = 'C'
+        elif avg >= 50:
+            grade = 'D'
+        else:
+            grade = 'F'
+        
+        subject_grades.append({
+            'subject_name': mark['subject_name'],
+            'exam_1': mark['exam_1'],
+            'exam_2': mark['exam_2'],
+            'exam_3': mark['exam_3'],
+            'total': exam_total,
+            'average': round(avg, 2),
+            'grade': grade
+        })
+    
     cur.close()
     conn.close()
-    return render_template("student_dashboard.html", student=student)
+    
+    return render_template("student_dashboard.html", 
+                          student=student,
+                          subjects=subjects,
+                          marks_data=marks_data,
+                          subject_grades=subject_grades,
+                          total_marks=total_marks)
 
 
 @app.route("/student_performance")
@@ -1986,6 +2072,417 @@ def teacher_report(teacher_id):
     )
 
 
+def _excel_student_report(student_id):
+    """Generate student report as Excel file"""
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+    cur.execute(
+        "SELECT s.*, c.class_name FROM students s LEFT JOIN classes c ON s.class_id = c.id WHERE s.student_id=%s",
+        (student_id,),
+    )
+    stu = cur.fetchone()
+    cur.execute(
+        """
+        SELECT s.subject_name, COALESCE(m.internal_exam_1, 0) AS internal_exam_1,
+               COALESCE(m.internal_exam_2, 0) AS internal_exam_2,
+               COALESCE(m.internal_exam_3, 0) AS internal_exam_3
+        FROM subjects s
+        LEFT JOIN marks m ON m.subject_id = s.id AND m.student_id = %s
+        WHERE s.branch_id = %s AND s.semester_id = %s
+        ORDER BY s.subject_name
+        """,
+        (student_id, stu.get("branch_id"), stu.get("semester_id")),
+    )
+    mk = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Student Report"
+
+    # Header styling
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Title
+    ws['A1'] = "Student Report"
+    ws['A1'].font = Font(bold=True, size=16)
+    ws['A1'].alignment = Alignment(horizontal='left', vertical='center')
+    ws.merge_cells('A1:D1')
+    ws.row_dimensions[1].height = 25
+
+    # Generated date
+    ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws['A2'].font = Font(size=9, italic=True)
+    ws.row_dimensions[2].height = 15
+
+    # Student info section
+    row = 4
+    ws[f'A{row}'] = "Student Information"
+    ws[f'A{row}'].font = Font(bold=True, size=11, color="1F4E78")
+    ws.merge_cells(f'A{row}:D{row}')
+    row += 1
+
+    student_fields = [
+        ("ID", stu.get("student_id", "")),
+        ("Name", stu.get("name", "")),
+        ("Branch", stu.get("branch", "")),
+        ("Semester", stu.get("semester", "")),
+        ("Class", stu.get("class_name", "")),
+        ("Gender", stu.get("gender", "")),
+        ("DOB", str(stu.get("dob", ""))),
+        ("Mobile", stu.get("mobile", "")),
+        ("Father Mobile", stu.get("father_mobile", "")),
+        ("Email", stu.get("email", "")),
+    ]
+
+    for label, value in student_fields:
+        ws[f'A{row}'] = label
+        ws[f'A{row}'].font = Font(bold=True)
+        ws[f'B{row}'] = value
+        row += 1
+
+    # Marks section
+    row += 1
+    ws[f'A{row}'] = "Subjects & Marks"
+    ws[f'A{row}'].font = Font(bold=True, size=11, color="1F4E78")
+    ws.merge_cells(f'A{row}:E{row}')
+    row += 1
+
+    # Headers
+    headers = ["Subject", "Internal Exam 1", "Internal Exam 2", "Internal Exam 3", "Total"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    row += 1
+    total_marks = 0
+    subject_count = 0
+
+    for mark in mk:
+        m1 = int(mark.get("internal_exam_1", 0))
+        m2 = int(mark.get("internal_exam_2", 0))
+        m3 = int(mark.get("internal_exam_3", 0))
+        subj_total = m1 + m2 + m3
+        total_marks += subj_total
+        subject_count += 1
+
+        ws[f'A{row}'] = mark.get("subject_name", "")
+        ws[f'B{row}'] = m1
+        ws[f'C{row}'] = m2
+        ws[f'D{row}'] = m3
+        ws[f'E{row}'] = subj_total
+
+        for col in range(1, 6):
+            cell = ws.cell(row=row, column=col)
+            cell.border = thin_border
+            if col > 1:
+                cell.alignment = Alignment(horizontal='center')
+
+        row += 1
+
+    # Summary
+    row += 1
+    ws[f'A{row}'] = "Summary"
+    ws[f'A{row}'].font = Font(bold=True, size=10, color="1F4E78")
+    row += 1
+
+    ws[f'A{row}'] = "Total Marks"
+    ws[f'A{row}'].font = Font(bold=True)
+    ws[f'B{row}'] = total_marks
+
+    max_total = subject_count * 120
+    percentage = round((total_marks / max_total) * 100, 2) if max_total else 0
+    row += 1
+    ws[f'A{row}'] = "Percentage"
+    ws[f'A{row}'].font = Font(bold=True)
+    ws[f'B{row}'] = f"{percentage}%"
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 18
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 18
+    ws.column_dimensions['E'].width = 15
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+@app.route("/report_excel/<student_id>")
+def report_excel(student_id):
+    """Download student report as Excel"""
+    if not g.role:
+        return redirect(url_for("login"))
+    if g.role == "student" and g.user_id != student_id:
+        abort(403)
+    buf = _excel_student_report(student_id)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"report_{student_id}.xlsx",
+    )
+
+
+def _excel_teacher_report(teacher_id):
+    """Generate teacher report as Excel file"""
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+    cur.execute("SELECT * FROM teachers WHERE teacher_id=%s", (teacher_id,))
+    t = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Teacher Profile"
+
+    # Header styling
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Title
+    ws['A1'] = "Teacher Profile"
+    ws['A1'].font = Font(bold=True, size=16)
+    ws['A1'].alignment = Alignment(horizontal='left', vertical='center')
+    ws.merge_cells('A1:D1')
+    ws.row_dimensions[1].height = 25
+
+    # Generated date
+    ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws['A2'].font = Font(size=9, italic=True)
+    ws.row_dimensions[2].height = 15
+
+    # Teacher info section
+    row = 4
+    ws[f'A{row}'] = "Teacher Information"
+    ws[f'A{row}'].font = Font(bold=True, size=11, color="1F4E78")
+    ws.merge_cells(f'A{row}:D{row}')
+    row += 1
+
+    if t:
+        teacher_fields = [
+            ("ID", t.get("teacher_id", "")),
+            ("Name", t.get("name", "")),
+            ("Branch", t.get("branch", "")),
+            ("Phone", t.get("phone", "")),
+            ("Email", t.get("email", "")),
+            ("Gender", t.get("gender", "")),
+            ("DOB", str(t.get("dob", ""))),
+        ]
+
+        for label, value in teacher_fields:
+            ws[f'A{row}'] = label
+            ws[f'A{row}'].font = Font(bold=True)
+            ws[f'B{row}'] = value
+            row += 1
+
+        # Subjects section
+        row += 1
+        ws[f'A{row}'] = "Subjects"
+        ws[f'A{row}'].font = Font(bold=True, size=11, color="1F4E78")
+        ws.merge_cells(f'A{row}:D{row}')
+        row += 1
+
+        subjects = t.get("subjects") or ""
+        subject_list = [s.strip() for s in subjects.split(",") if s.strip()]
+
+        for i, subject in enumerate(subject_list, 1):
+            ws[f'A{row}'] = f"{i}. {subject}"
+            row += 1
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 20
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+@app.route("/teacher_report_excel/<teacher_id>")
+def teacher_report_excel(teacher_id):
+    """Download teacher report as Excel"""
+    if not g.role:
+        return redirect(url_for("login"))
+    if g.role == "teacher" and g.user_id != teacher_id:
+        abort(403)
+    buf = _excel_teacher_report(teacher_id)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"teacher_{teacher_id}.xlsx",
+    )
+
+
+@app.route("/students_export_excel")
+def students_export_excel():
+    """Export all students list as Excel"""
+    redir = require_roles("admin", "teacher")
+    if redir:
+        return redir
+
+    conn = get_db()
+    cur = conn.cursor(buffered=True, dictionary=True)
+    
+    # Fetch all classes for filtering
+    classes = fetch_semester_classes(cur)
+    
+    selected_class_id = request.args.get("class_id", type=int)
+    selected_class_name = None
+    if selected_class_id:
+        for cls in classes:
+            if cls["id"] == selected_class_id:
+                selected_class_name = cls["class_name"]
+                break
+
+    # Same query as students() route
+    stats_query = (
+        "SELECT st.student_id, "
+        "COALESCE(SUM(m.internal_exam_1 + m.internal_exam_2 + m.internal_exam_3), 0) AS total_marks, "
+        "COUNT(DISTINCT subj.id) AS subject_count "
+        "FROM students st "
+        "LEFT JOIN subjects subj ON st.branch_id = subj.branch_id AND st.semester_id = subj.semester_id "
+        "LEFT JOIN marks m ON m.student_id = st.student_id AND m.subject_id = subj.id "
+        "GROUP BY st.student_id"
+    )
+
+    base_query = (
+        "SELECT s.*, c.class_name, COALESCE(ROUND(stats.total_marks / NULLIF(stats.subject_count * 120, 0) * 100, 2), 0) AS percentage "
+        "FROM students s "
+        "LEFT JOIN classes c ON s.class_id = c.id "
+        "LEFT JOIN (" + stats_query + ") AS stats ON stats.student_id = s.student_id "
+    )
+
+    if selected_class_id:
+        cur.execute(
+            base_query + "WHERE s.class_id=%s ORDER BY s.student_id",
+            (selected_class_id,),
+        )
+    else:
+        cur.execute(base_query + "ORDER BY s.student_id")
+
+    rows = cur.fetchall()
+    for s in rows:
+        p = s.get("percentage")
+        s["percentage"] = float(p) if p is not None else 0.0
+
+    cur.close()
+    conn.close()
+
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Students"
+
+    # Header styling
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Title
+    ws['A1'] = "Students Report"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].alignment = Alignment(horizontal='left', vertical='center')
+    ws.merge_cells('A1:F1')
+    ws.row_dimensions[1].height = 22
+
+    # Generated date and filter info
+    ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws['A2'].font = Font(size=9, italic=True)
+    if selected_class_name:
+        ws['A3'] = f"Filter: {selected_class_name}"
+        ws['A3'].font = Font(size=9, italic=True, bold=True)
+    ws.row_dimensions[2].height = 15
+    ws.row_dimensions[3].height = 15
+
+    # Headers
+    headers = ["Student ID", "Name", "Class", "Semester", "Roll No", "Percentage"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=5, column=col)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    # Data rows
+    row = 6
+    for student in rows:
+        ws.cell(row=row, column=1).value = student.get("student_id", "")
+        ws.cell(row=row, column=2).value = student.get("name", "")
+        ws.cell(row=row, column=3).value = student.get("class_name", "")
+        ws.cell(row=row, column=4).value = student.get("semester", "")
+        ws.cell(row=row, column=5).value = student.get("student_id", "")  # Roll No (using student_id)
+        ws.cell(row=row, column=6).value = f"{student.get('percentage', 0):.2f}%"
+
+        for col in range(1, 7):
+            cell = ws.cell(row=row, column=col)
+            cell.border = thin_border
+            if col == 6:
+                cell.alignment = Alignment(horizontal='center')
+            else:
+                cell.alignment = Alignment(horizontal='left')
+        
+        row += 1
+
+    # Summary row
+    row += 1
+    ws[f'A{row}'] = "Total Students"
+    ws[f'A{row}'].font = Font(bold=True)
+    ws[f'B{row}'] = len(rows)
+    ws.row_dimensions[row].height = 18
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 15
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    
+    filename = f"students_{selected_class_name.replace(' ', '_')}" if selected_class_name else "students_all"
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"{filename}.xlsx",
+    )
+
+
 @app.route("/announcements", methods=["GET", "POST"])
 def announcements():
     if not g.role:
@@ -2364,7 +2861,6 @@ def _otp_send(phone, purpose):
     session["otp_phone"] = phone
     session["otp_code"] = code
     session["otp_purpose"] = purpose
-    session["otp_verified"] = False
     app.logger.info("OTP for %s: %s", phone, code)
 
 
@@ -2373,128 +2869,216 @@ def _otp_send(phone, purpose):
 def forgot_password():
     if request.method == "POST":
         phone = re.sub(r"\D", "", request.form.get("phone", ""))
+        if not phone or len(phone) != 10:
+            flash("Please enter a valid 10-digit phone number", "error")
+            return render_template("forgot_password.html")
+        
         conn = get_db()
         cur = conn.cursor(buffered=True, dictionary=True)
         cur.execute("SELECT student_id FROM students WHERE mobile=%s", (phone,))
         row = cur.fetchone()
         cur.close()
         conn.close()
+        
         if not row:
             flash("Phone number not registered", "error")
             return render_template("forgot_password.html")
+        
         session["reset_student_id"] = row["student_id"]
+        session["otp_purpose"] = "student"
         _otp_send(phone, "student")
-        flash("OTP sent (check server log for demo OTP)", "success")
+        otp_code = session.get("otp_code")
+        flash(f"✅ OTP sent successfully! Your OTP is: {otp_code}", "success")
         return redirect(url_for("verify_otp"))
     return render_template("forgot_password.html")
 
 
 @app.route("/verify_otp", methods=["GET", "POST"])
 def verify_otp():
-    if request.method == "GET" and (
-        not session.get("otp_code") or session.get("otp_purpose") != "student"
-    ):
-        return redirect(url_for("forgot_password"))
+    if request.method == "GET":
+        if not session.get("otp_code") or session.get("otp_purpose") != "student":
+            flash("Session expired. Please request OTP again.", "error")
+            return redirect(url_for("forgot_password"))
+    
     if request.method == "POST":
-        if request.form.get("otp") == session.get("otp_code"):
+        entered_otp = request.form.get("otp", "").strip()
+        stored_otp = session.get("otp_code", "")
+        
+        if not entered_otp:
+            flash("Please enter the OTP", "error")
+            return render_template("otp_verify.html")
+        
+        if entered_otp == stored_otp:
             session["otp_verified"] = True
             return redirect(url_for("reset_password"))
-        flash("Invalid OTP", "error")
+        else:
+            flash("Invalid OTP. Please try again.", "error")
+    
     return render_template("otp_verify.html")
 
 
 @app.route("/reset_password", methods=["GET", "POST"])
 def reset_password():
-    if not session.get("otp_verified"):
+    if not session.get("otp_verified") or session.get("otp_purpose") != "student":
+        flash("Session expired. Please request password reset again.", "error")
         return redirect(url_for("forgot_password"))
+    
     if request.method == "POST":
-        p1 = request.form.get("new_password", "")
-        p2 = request.form.get("confirm_password", "")
-        if p1 != p2 or len(p1) < 6:
-            flash("Passwords must match (min 6 chars)", "error")
-            return render_template("reset_password.html")
+        p1 = request.form.get("new_password", "").strip()
+        p2 = request.form.get("confirm_password", "").strip()
+        
+        if not p1 or not p2:
+            flash("Please enter both passwords", "error")
+            return render_template("reset_password.html", student_id=session.get("reset_student_id"))
+        
+        if len(p1) < 6:
+            flash("Password must be at least 6 characters", "error")
+            return render_template("reset_password.html", student_id=session.get("reset_student_id"))
+        
+        if p1 != p2:
+            flash("Passwords do not match", "error")
+            return render_template("reset_password.html", student_id=session.get("reset_student_id"))
+        
         sid = session.get("reset_student_id")
         if not sid:
             flash("Session expired", "error")
             return redirect(url_for("forgot_password"))
+        
         conn = get_db()
         cur = conn.cursor(buffered=True)
-        cur.execute(
-            "UPDATE students SET password=%s WHERE student_id=%s", (hash_pw(p1), sid)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        session.pop("otp_verified", None)
-        session.pop("otp_code", None)
-        session.pop("reset_student_id", None)
-        flash("Password updated. Please login.", "success")
-        return redirect(url_for("login"))
-    return render_template("reset_password.html")
+        try:
+            cur.execute(
+                "UPDATE students SET password=%s WHERE student_id=%s", 
+                (hash_pw(p1), sid)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            session.pop("otp_verified", None)
+            session.pop("otp_code", None)
+            session.pop("otp_phone", None)
+            session.pop("otp_purpose", None)
+            session.pop("reset_student_id", None)
+            
+            flash("Password updated successfully. Please login with your new password.", "success")
+            return redirect(url_for("login"))
+        except Exception as e:
+            conn.rollback()
+            cur.close()
+            conn.close()
+            flash(f"Error updating password: {str(e)}", "error")
+            return render_template("reset_password.html", student_id=session.get("reset_student_id"))
+    
+    return render_template("reset_password.html", student_id=session.get("reset_student_id"))
 
 
 @app.route("/teacher_forgot_password", methods=["GET", "POST"])
 def teacher_forgot_password():
     if request.method == "POST":
         phone = re.sub(r"\D", "", request.form.get("phone", ""))
+        if not phone or len(phone) != 10:
+            flash("Please enter a valid 10-digit phone number", "error")
+            return render_template("teacher_forgot_password.html")
+        
         conn = get_db()
         cur = conn.cursor(buffered=True, dictionary=True)
         cur.execute("SELECT teacher_id FROM teachers WHERE phone=%s", (phone,))
         row = cur.fetchone()
         cur.close()
         conn.close()
+        
         if not row:
             flash("Phone number not registered", "error")
             return render_template("teacher_forgot_password.html")
+        
         session["reset_teacher_id"] = row["teacher_id"]
+        session["otp_purpose"] = "teacher"
         _otp_send(phone, "teacher")
-        flash("OTP sent (check server log for demo OTP)", "success")
+        otp_code = session.get("otp_code")
+        flash(f"✅ OTP sent successfully! Your OTP is: {otp_code}", "success")
         return redirect(url_for("teacher_verify_otp"))
     return render_template("teacher_forgot_password.html")
 
 
 @app.route("/teacher_verify_otp", methods=["GET", "POST"])
 def teacher_verify_otp():
-    if request.method == "GET" and (
-        not session.get("otp_code") or session.get("otp_purpose") != "teacher"
-    ):
-        return redirect(url_for("teacher_forgot_password"))
+    if request.method == "GET":
+        if not session.get("otp_code") or session.get("otp_purpose") != "teacher":
+            flash("Session expired. Please request OTP again.", "error")
+            return redirect(url_for("teacher_forgot_password"))
+    
     if request.method == "POST":
-        if request.form.get("otp") == session.get("otp_code"):
+        entered_otp = request.form.get("otp", "").strip()
+        stored_otp = session.get("otp_code", "")
+        
+        if not entered_otp:
+            flash("Please enter the OTP", "error")
+            return render_template("teacher_verify_otp.html")
+        
+        if entered_otp == stored_otp:
             session["otp_verified_teacher"] = True
             return redirect(url_for("teacher_reset_password"))
-        flash("Invalid OTP", "error")
+        else:
+            flash("Invalid OTP. Please try again.", "error")
+    
     return render_template("teacher_verify_otp.html")
 
 
 @app.route("/teacher_reset_password", methods=["GET", "POST"])
 def teacher_reset_password():
-    if not session.get("otp_verified_teacher"):
+    if not session.get("otp_verified_teacher") or session.get("otp_purpose") != "teacher":
+        flash("Session expired. Please request password reset again.", "error")
         return redirect(url_for("teacher_forgot_password"))
+    
     if request.method == "POST":
-        p1 = request.form.get("new_password", "")
-        p2 = request.form.get("confirm_password", "")
-        if p1 != p2 or len(p1) < 6:
-            flash("Passwords must match (min 6 chars)", "error")
-            return render_template("teacher_reset_password.html")
+        p1 = request.form.get("new_password", "").strip()
+        p2 = request.form.get("confirm_password", "").strip()
+        
+        if not p1 or not p2:
+            flash("Please enter both passwords", "error")
+            return render_template("teacher_reset_password.html", teacher_id=session.get("reset_teacher_id"))
+        
+        if len(p1) < 6:
+            flash("Password must be at least 6 characters", "error")
+            return render_template("teacher_reset_password.html", teacher_id=session.get("reset_teacher_id"))
+        
+        if p1 != p2:
+            flash("Passwords do not match", "error")
+            return render_template("teacher_reset_password.html", teacher_id=session.get("reset_teacher_id"))
+        
         tid = session.get("reset_teacher_id")
         if not tid:
             flash("Session expired", "error")
             return redirect(url_for("teacher_forgot_password"))
+        
         conn = get_db()
         cur = conn.cursor(buffered=True)
-        cur.execute(
-            "UPDATE teachers SET password=%s WHERE teacher_id=%s", (hash_pw(p1), tid)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        session.pop("otp_verified_teacher", None)
-        session.pop("otp_code", None)
-        session.pop("reset_teacher_id", None)
-        flash("Password updated. Please login.", "success")
-        return redirect(url_for("login"))
-    return render_template("teacher_reset_password.html")
+        try:
+            cur.execute(
+                "UPDATE teachers SET password=%s WHERE teacher_id=%s", 
+                (hash_pw(p1), tid)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            session.pop("otp_verified_teacher", None)
+            session.pop("otp_code", None)
+            session.pop("otp_phone", None)
+            session.pop("otp_purpose", None)
+            session.pop("reset_teacher_id", None)
+            
+            flash("Password updated successfully. Please login with your new password.", "success")
+            return redirect(url_for("login"))
+        except Exception as e:
+            conn.rollback()
+            cur.close()
+            conn.close()
+            flash(f"Error updating password: {str(e)}", "error")
+            return render_template("teacher_reset_password.html", teacher_id=session.get("reset_teacher_id"))
+    
+    return render_template("teacher_reset_password.html", teacher_id=session.get("reset_teacher_id"))
 
 
 @app.route("/add_student", methods=["GET", "POST"])

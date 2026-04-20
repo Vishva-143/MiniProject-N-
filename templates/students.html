@@ -7,11 +7,16 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0">📋 Students List</h4>
-    {% if role == 'admin' or role == 'teacher' %}
-    <a href="/upgrade_semester_search" class="btn btn-success btn-sm">
-        <i class="bi bi-arrow-up-circle me-2"></i>Semester Upgrade
-    </a>
-    {% endif %}
+    <div class="btn-group" role="group">
+        {% if role == 'admin' or role == 'teacher' %}
+        <a href="/upgrade_semester_search" class="btn btn-success btn-sm">
+            <i class="bi bi-arrow-up-circle me-2"></i>Semester Upgrade
+        </a>
+        {% endif %}
+        <a href="/students_export_excel{% if selected_class_id %}?class_id={{ selected_class_id }}{% endif %}" class="btn btn-success btn-sm" title="Download students list as Excel">
+            <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export Excel
+        </a>
+    </div>
 </div>
 
 <form method="get" class="row g-2 align-items-center mb-4">

@@ -5,19 +5,19 @@
 
 <div class="container mt-4">
     <div class="row">
-        <div class="col-md-10 mx-auto">
-            <div class="card shadow-lg">
+        <div class="col-md-12">
+            <!-- STUDENT PROFILE CARD -->
+            <div class="card shadow-lg mb-4">
                 <div class="card-header bg-primary text-white text-center">
                     <h3>🎓 Student Dashboard</h3>
                     <small class="text-light">{{ student.name }} - {{ student.student_id }}</small>
                 </div>
 
                 <div class="card-body">
-                    <!-- STUDENT PROFILE DETAILS -->
                     <div class="row">
-                        <div class="col-md-4 text-center">
+                        <div class="col-md-3 text-center">
                             {% if student.photo %}
-                            <img src="{{ url_for('static', filename='uploads/' ~ student.photo) }}" class="img-fluid rounded mx-auto d-block mb-3" style="max-height:220px;" alt="Student Photo">
+                            <img src="{{ url_for('static', filename='uploads/' ~ student.photo) }}" class="img-fluid rounded mx-auto d-block mb-3" style="max-height:180px;" alt="Student Photo">
                             {% else %}
                             <div class="bg-secondary text-white rounded p-4 mt-2">
                                 No photo available
@@ -25,7 +25,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="col-md-8">
+                        <div class="col-md-9">
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <p><strong>ID:</strong> {{ student.student_id }}</p>
@@ -73,7 +73,6 @@
                         </div>
                     </div>
 
-                    <!-- ACTION BUTTONS -->
                     <div class="mt-4 text-center">
                         <a href="{{ url_for('edit_student_profile') }}" class="btn btn-warning btn-lg ms-2">
                             <i class="bi bi-pencil-square"></i> Edit Profile
@@ -81,6 +80,159 @@
                     </div>
                 </div>
             </div>
+
+            <!-- TOTAL MARKS CARD -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center bg-success text-white shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">📊 Total Marks</h5>
+                            <h2 class="card-text">{{ total_marks }}</h2>
+                            <small>Across all subjects</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-info text-white shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">📚 Subjects</h5>
+                            <h2 class="card-text">{{ subjects|length }}</h2>
+                            <small>Enrolled subjects</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-warning text-dark shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">🏆 Average Grade</h5>
+                            <h2 class="card-text">
+                                {% if subject_grades %}
+                                    {% set avg_marks = (total_marks / (subjects|length * 3)) if subjects|length > 0 else 0 %}
+                                    {% if avg_marks >= 90 %}A+
+                                    {% elif avg_marks >= 80 %}A
+                                    {% elif avg_marks >= 70 %}B
+                                    {% elif avg_marks >= 60 %}C
+                                    {% elif avg_marks >= 50 %}D
+                                    {% else %}F
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </h2>
+                            <small>Overall performance</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-secondary text-white shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">👨‍🏫 Teachers</h5>
+                            <h2 class="card-text">
+                                {% set unique_teachers = subjects|selectattr('teacher_id')|unique(attribute='teacher_id')|list %}
+                                {{ unique_teachers|length }}
+                            </h2>
+                            <small>Faculty assigned</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXAM-WISE GRADES TABLE -->
+            {% if subject_grades %}
+            <div class="card shadow-lg mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📈 Exam-Wise Grades</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Subject</th>
+                                    <th class="text-center">Exam 1</th>
+                                    <th class="text-center">Exam 2</th>
+                                    <th class="text-center">Exam 3</th>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">Average</th>
+                                    <th class="text-center">Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in subject_grades %}
+                                <tr>
+                                    <td><strong>{{ grade.subject_name }}</strong></td>
+                                    <td class="text-center">{{ grade.exam_1 }}</td>
+                                    <td class="text-center">{{ grade.exam_2 }}</td>
+                                    <td class="text-center">{{ grade.exam_3 }}</td>
+                                    <td class="text-center"><strong>{{ grade.total }}</strong></td>
+                                    <td class="text-center"><strong>{{ grade.average }}</strong></td>
+                                    <td class="text-center">
+                                        {% if grade.grade == 'A+' %}
+                                            <span class="badge bg-success">{{ grade.grade }}</span>
+                                        {% elif grade.grade == 'A' %}
+                                            <span class="badge bg-info">{{ grade.grade }}</span>
+                                        {% elif grade.grade == 'B' %}
+                                            <span class="badge bg-warning">{{ grade.grade }}</span>
+                                        {% elif grade.grade == 'C' %}
+                                            <span class="badge bg-warning">{{ grade.grade }}</span>
+                                        {% elif grade.grade == 'D' %}
+                                            <span class="badge bg-danger">{{ grade.grade }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ grade.grade }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- WEEKLY SUBJECTS WITH TEACHERS -->
+            {% if subjects %}
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📅 Weekly Subjects & Teachers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for subject in subjects %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-left border-primary">
+                                <div class="card-body">
+                                    <h6 class="card-title text-primary"><strong>📖 {{ subject.subject_name }}</strong></h6>
+                                    <div class="mt-2">
+                                        <p class="mb-2">
+                                            <strong>👨‍🏫 Teacher:</strong> 
+                                            <span class="text-success">{{ subject.teacher_name }}</span>
+                                        </p>
+                                        {% if subject.teacher_email and subject.teacher_email != '' %}
+                                        <p class="mb-2">
+                                            <strong>📧 Email:</strong> 
+                                            <a href="mailto:{{ subject.teacher_email }}">{{ subject.teacher_email }}</a>
+                                        </p>
+                                        {% endif %}
+                                        {% if subject.teacher_phone and subject.teacher_phone != '' %}
+                                        <p class="mb-0">
+                                            <strong>📞 Phone:</strong> 
+                                            <a href="tel:{{ subject.teacher_phone }}">{{ subject.teacher_phone }}</a>
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info" role="alert">
+                📚 No subjects assigned yet. Please contact the administrator.
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

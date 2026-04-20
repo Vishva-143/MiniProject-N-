@@ -27,7 +27,10 @@
                 {% if role == 'admin' %}
                 <a href="/update_teacher/{{ t.teacher_id }}" class="btn btn-warning">Edit</a>
                 <a href="/delete_teacher/{{ t.teacher_id }}" class="btn btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
-                <a href="/teacher_report/{{ t.teacher_id }}" class="btn btn-primary">PDF</a>
+                <div class="btn-group btn-group-sm" role="group">
+                  <a href="/teacher_report/{{ t.teacher_id }}" class="btn btn-info" title="Download PDF"><i class="bi bi-file-pdf"></i> PDF</a>
+                  <a href="/teacher_report_excel/{{ t.teacher_id }}" class="btn btn-success" title="Download Excel"><i class="bi bi-file-earmark-spreadsheet"></i> Excel</a>
+                </div>
                 {% endif %}
             </div>
         </td>

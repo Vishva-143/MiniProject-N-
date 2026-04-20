@@ -229,6 +229,14 @@
 
                     <!-- Actions -->
                     <div class="mt-4 text-end">
+                        <div class="btn-group me-2" role="group">
+                            <a href="{{ url_for('report_pdf', student_id=student.student_id) }}" class="btn btn-info" title="Download PDF Report">
+                                <i class="bi bi-file-pdf"></i> Download PDF
+                            </a>
+                            <a href="{{ url_for('report_excel', student_id=student.student_id) }}" class="btn btn-success" title="Download Excel Report">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Download Excel
+                            </a>
+                        </div>
                         <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
                     </div>
                 </div>

@@ -36,7 +36,14 @@
         <!-- ACTIONS -->
         <div class="d-flex gap-2 mt-4">
             <a href="/update_teacher/{{ teacher.teacher_id }}" class="btn btn-warning">✏️ Edit</a>
-            <a href="/teacher_report/{{ teacher.teacher_id }}" class="btn btn-info">📄 Download PDF</a>
+            <div class="btn-group" role="group">
+                <a href="/teacher_report/{{ teacher.teacher_id }}" class="btn btn-info" title="Download PDF Report">
+                    <i class="bi bi-file-pdf"></i> Download PDF
+                </a>
+                <a href="/teacher_report_excel/{{ teacher.teacher_id }}" class="btn btn-success" title="Download Excel Report">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Download Excel
+                </a>
+            </div>
             <a href="/teachers" class="btn btn-secondary">← Back</a>
         </div>
     </div>
